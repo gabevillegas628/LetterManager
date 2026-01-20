@@ -1,0 +1,221 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Professor (single user)
+model Professor {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  title        String?  // e.g., "Associate Professor"
+  department   String?
+  institution  String?
+  signature    String?  // Base64 or file path
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("professor")
+}
+
+// Letter Request status enum
+enum RequestStatus {
+  PENDING     // Code generated, awaiting student
+  SUBMITTED   // Student filled form
+  IN_PROGRESS // Professor working on letter
+  COMPLETED   // Letter finalized
+  ARCHIVED    // Old/inactive
+
+  @@map("request_status")
+}
+
+// Submission destination status enum
+enum SubmissionStatus {
+  PENDING   // Not yet sent
+  SENT      // Email sent or downloaded
+  CONFIRMED // Confirmed received (manual)
+  FAILED    // Send failed
+
+  @@map("submission_status")
+}
+
+// Submission method enum
+enum SubmissionMethod {
+  EMAIL    // Send via email
+  DOWNLOAD // Download PDF manually
+  PORTAL   // Manual portal submission
+
+  @@map("submission_method")
+}
+
+// Letter Request
+model LetterRequest {
+  id         String        @id @default(uuid())
+  accessCode String        @unique @map("access_code")
+  status     RequestStatus @default(PENDING)
+
+  // Student information (filled by student)
+  studentName  String? @map("student_name")
+  studentEmail String? @map("student_email")
+  studentPhone String? @map("student_phone")
+
+  // Academic information
+  programApplying      String? @map("program_applying")
+  institutionApplying  String? @map("institution_applying")
+  degreeType           String? @map("degree_type") // MS, PhD, MBA, etc.
+
+  // Relationship context
+  courseTaken              String? @map("course_taken")
+  grade                    String?
+  semesterYear             String? @map("semester_year")
+  relationshipDescription  String? @map("relationship_description")
+
+  // Additional student-provided info
+  achievements      String?
+  personalStatement String? @map("personal_statement")
+  additionalNotes   String? @map("additional_notes")
+
+  // Flexible custom fields (JSON)
+  customFields Json? @map("custom_fields")
+
+  // Deadline
+  deadline DateTime?
+
+  // Professor notes (private)
+  professorNotes String? @map("professor_notes")
+
+  // Timestamps
+  codeGeneratedAt    DateTime  @default(now()) @map("code_generated_at")
+  studentSubmittedAt DateTime? @map("student_submitted_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  documents    Document[]
+  destinations SubmissionDestination[]
+  letters      Letter[]
+
+  @@map("letter_request")
+}
+
+// Documents uploaded by student
+model Document {
+  id        String @id @default(uuid())
+  requestId String @map("request_id")
+
+  // File metadata
+  originalName String @map("original_name")
+  storedName   String @map("stored_name")
+  mimeType     String @map("mime_type")
+  size         Int    // bytes
+  path         String
+
+  // Document type/label
+  label       String? // "Resume", "Transcript", etc.
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  request LetterRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("document")
+}
+
+// Letter Templates
+model Template {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+
+  // Rich text content with variables
+  content String // HTML with {{variables}}
+
+  // Available variables for this template
+  variables Json? // [{name, description, required}]
+
+  // Template categorization
+  category String?
+
+  isActive  Boolean @default(true) @map("is_active")
+  isDefault Boolean @default(false) @map("is_default")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  letters Letter[]
+
+  @@map("template")
+}
+
+// Submission Destinations (where letters need to be sent)
+model SubmissionDestination {
+  id        String @id @default(uuid())
+  requestId String @map("request_id")
+
+  // Destination details
+  institutionName String  @map("institution_name")
+  programName     String? @map("program_name")
+  recipientName   String? @map("recipient_name")
+  recipientEmail  String? @map("recipient_email")
+
+  // For portal submissions
+  portalUrl          String? @map("portal_url")
+  portalInstructions String? @map("portal_instructions")
+
+  // Method and status
+  method SubmissionMethod
+  status SubmissionStatus @default(PENDING)
+
+  // Deadline for this specific submission
+  deadline DateTime?
+
+  // Tracking
+  sentAt        DateTime? @map("sent_at")
+  confirmedAt   DateTime? @map("confirmed_at")
+  failureReason String?   @map("failure_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  request LetterRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("submission_destination")
+}
+
+// Generated Letters
+model Letter {
+  id         String  @id @default(uuid())
+  requestId  String  @map("request_id")
+  templateId String? @map("template_id")
+
+  // Letter content
+  content String // Final HTML content
+
+  // Generated PDF
+  pdfPath        String?   @map("pdf_path")
+  pdfGeneratedAt DateTime? @map("pdf_generated_at")
+
+  // Version tracking
+  version     Int     @default(1)
+  isFinalized Boolean @default(false) @map("is_finalized")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  request  LetterRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  template Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@map("letter")
+}
