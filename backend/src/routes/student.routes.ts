@@ -1,58 +1,298 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { codeLimiter } from '../middleware/rateLimit.middleware.js';
+import { upload, validateUploadedFiles } from '../middleware/upload.middleware.js';
+import {
+  studentService,
+  validateCodeSchema,
+  studentInfoSchema,
+  destinationSchema,
+} from '../services/student.service.js';
 
 const router = Router();
 
 // POST /api/student/validate-code - Validate access code
-router.post('/validate-code', codeLimiter, async (req, res, next) => {
+router.post('/validate-code', codeLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json({ success: true, message: 'Validate code - to be implemented' });
+    const parsed = validateCodeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid code format',
+      });
+      return;
+    }
+
+    const result = await studentService.validateCode(parsed.data.code);
+
+    if (!result.valid) {
+      res.status(404).json({
+        success: false,
+        error: 'Invalid or expired access code',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        valid: true,
+        status: result.status,
+      },
+    });
   } catch (error) {
     next(error);
   }
 });
 
 // GET /api/student/:code - Get request form by code
-router.get('/:code', async (req, res, next) => {
+router.get('/:code', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json({ success: true, data: null, message: 'Get request form - to be implemented' });
+    const code = req.params.code as string;
+    const request = await studentService.getRequestByCode(code);
+
+    if (!request) {
+      res.status(404).json({
+        success: false,
+        error: 'Request not found or no longer accepting submissions',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: request,
+    });
   } catch (error) {
     next(error);
   }
 });
 
-// PUT /api/student/:code - Submit student information
-router.put('/:code', async (req, res, next) => {
+// PUT /api/student/:code - Update student information
+router.put('/:code', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json({ success: true, message: 'Submit student info - to be implemented' });
+    const code = req.params.code as string;
+    const parsed = studentInfoSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const request = await studentService.updateStudentInfo(code, parsed.data);
+
+    res.json({
+      success: true,
+      data: request,
+    });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Request not found') {
+        res.status(404).json({ success: false, error: error.message });
+        return;
+      }
+      if (error.message === 'Request cannot be modified') {
+        res.status(403).json({ success: false, error: error.message });
+        return;
+      }
+    }
     next(error);
   }
 });
 
 // POST /api/student/:code/documents - Upload documents
-router.post('/:code/documents', async (req, res, next) => {
+router.post(
+  '/:code/documents',
+  upload.array('files', 10),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const code = req.params.code as string;
+      const files = req.files as Express.Multer.File[];
+      const { label, description } = req.body;
+
+      if (!files || files.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'No files uploaded',
+        });
+        return;
+      }
+
+      // Validate file contents
+      const { valid, invalid } = await validateUploadedFiles(files);
+
+      if (invalid.length > 0 && valid.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid file type',
+          invalidFiles: invalid,
+        });
+        return;
+      }
+
+      // Save valid documents to database
+      const documents = [];
+      for (const file of valid) {
+        const doc = await studentService.addDocument(code, file, label, description);
+        documents.push(doc);
+      }
+
+      res.json({
+        success: true,
+        data: {
+          uploaded: documents,
+          rejected: invalid.length > 0 ? invalid : undefined,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Request not found') {
+        res.status(404).json({ success: false, error: error.message });
+        return;
+      }
+      next(error);
+    }
+  }
+);
+
+// DELETE /api/student/:code/documents/:documentId - Delete a document
+router.delete('/:code/documents/:documentId', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json({ success: true, message: 'Upload documents - to be implemented' });
+    const code = req.params.code as string;
+    const documentId = req.params.documentId as string;
+    await studentService.deleteDocument(code, documentId);
+
+    res.json({
+      success: true,
+      message: 'Document deleted',
+    });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Request not found' || error.message === 'Document not found') {
+        res.status(404).json({ success: false, error: error.message });
+        return;
+      }
+    }
     next(error);
   }
 });
 
-// POST /api/student/:code/destinations - Add submission destinations
-router.post('/:code/destinations', async (req, res, next) => {
+// POST /api/student/:code/destinations - Add submission destination
+router.post('/:code/destinations', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json({ success: true, message: 'Add destination - to be implemented' });
+    const code = req.params.code as string;
+    const parsed = destinationSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const destination = await studentService.addDestination(code, parsed.data);
+
+    res.json({
+      success: true,
+      data: destination,
+    });
   } catch (error) {
+    if (error instanceof Error && error.message === 'Request not found') {
+      res.status(404).json({ success: false, error: error.message });
+      return;
+    }
+    next(error);
+  }
+});
+
+// PUT /api/student/:code/destinations/:destinationId - Update a destination
+router.put('/:code/destinations/:destinationId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const code = req.params.code as string;
+    const destinationId = req.params.destinationId as string;
+    const parsed = destinationSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const destination = await studentService.updateDestination(code, destinationId, parsed.data);
+
+    res.json({
+      success: true,
+      data: destination,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Request not found' || error.message === 'Destination not found') {
+        res.status(404).json({ success: false, error: error.message });
+        return;
+      }
+      if (error.message === 'Request cannot be modified') {
+        res.status(403).json({ success: false, error: error.message });
+        return;
+      }
+    }
+    next(error);
+  }
+});
+
+// DELETE /api/student/:code/destinations/:destinationId - Delete a destination
+router.delete('/:code/destinations/:destinationId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const code = req.params.code as string;
+    const destinationId = req.params.destinationId as string;
+    await studentService.deleteDestination(code, destinationId);
+
+    res.json({
+      success: true,
+      message: 'Destination deleted',
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Request not found' || error.message === 'Destination not found') {
+        res.status(404).json({ success: false, error: error.message });
+        return;
+      }
+    }
     next(error);
   }
 });
 
 // POST /api/student/:code/submit - Final submission
-router.post('/:code/submit', async (req, res, next) => {
+router.post('/:code/submit', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json({ success: true, message: 'Final submit - to be implemented' });
+    const code = req.params.code as string;
+    const request = await studentService.submitRequest(code);
+
+    res.json({
+      success: true,
+      data: request,
+      message: 'Request submitted successfully',
+    });
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'Request not found') {
+        res.status(404).json({ success: false, error: error.message });
+        return;
+      }
+      if (
+        error.message === 'Student name and email are required' ||
+        error.message === 'At least one submission destination is required'
+      ) {
+        res.status(400).json({ success: false, error: error.message });
+        return;
+      }
+    }
     next(error);
   }
 });

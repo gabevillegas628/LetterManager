@@ -1,29 +1,29 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useValidateCode } from '../../hooks/useStudent'
 
 export default function CodeEntryPage() {
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
+  const validateCode = useValidateCode()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setIsLoading(true)
+
+    if (code.length < 6) {
+      setError('Please enter a valid access code')
+      return
+    }
 
     try {
-      // TODO: Validate code with backend
-      // For now, just navigate to the form
-      if (code.length >= 6) {
+      const result = await validateCode.mutateAsync(code)
+      if (result.valid) {
         navigate(`/student/${code.toUpperCase()}`)
-      } else {
-        setError('Please enter a valid access code')
       }
     } catch {
-      setError('Invalid code. Please check and try again.')
-    } finally {
-      setIsLoading(false)
+      setError('Invalid or expired access code. Please check and try again.')
     }
   }
 
@@ -62,10 +62,10 @@ export default function CodeEntryPage() {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={validateCode.isPending}
             className="btn-primary w-full"
           >
-            {isLoading ? 'Validating...' : 'Continue'}
+            {validateCode.isPending ? 'Validating...' : 'Continue'}
           </button>
         </form>
       </div>

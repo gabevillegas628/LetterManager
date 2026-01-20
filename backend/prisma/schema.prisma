@@ -189,15 +189,17 @@ model SubmissionDestination {
 
   // Relations
   request LetterRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  letters Letter[] // Letters generated for this specific destination
 
   @@map("submission_destination")
 }
 
 // Generated Letters
 model Letter {
-  id         String  @id @default(uuid())
-  requestId  String  @map("request_id")
-  templateId String? @map("template_id")
+  id            String  @id @default(uuid())
+  requestId     String  @map("request_id")
+  templateId    String? @map("template_id")
+  destinationId String? @map("destination_id") // Link to specific destination for per-institution letters
 
   // Letter content
   content String // Final HTML content
@@ -209,13 +211,15 @@ model Letter {
   // Version tracking
   version     Int     @default(1)
   isFinalized Boolean @default(false) @map("is_finalized")
+  isMaster    Boolean @default(false) @map("is_master") // Is this the master template letter?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  request  LetterRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  template Template?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  request     LetterRequest          @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  template    Template?              @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  destination SubmissionDestination? @relation(fields: [destinationId], references: [id], onDelete: SetNull)
 
   @@map("letter")
 }

@@ -1,4 +1,4 @@
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
@@ -17,7 +17,12 @@ import {
   Undo,
   Redo,
 } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useImperativeHandle, forwardRef } from 'react'
+
+export interface RichTextEditorRef {
+  insertContent: (content: string) => void
+  getEditor: () => Editor | null
+}
 
 interface RichTextEditorProps {
   content: string
@@ -58,44 +63,52 @@ function ToolbarDivider() {
   return <div className="w-px h-6 bg-gray-200 mx-1" />
 }
 
-export default function RichTextEditor({
-  content,
-  onChange,
-  placeholder = 'Start writing...',
-  readOnly = false,
-}: RichTextEditorProps) {
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
-      }),
-      Underline,
-      TextAlign.configure({
-        types: ['heading', 'paragraph'],
-      }),
-      Placeholder.configure({
-        placeholder,
-      }),
-    ],
-    content,
-    editable: !readOnly,
-    onUpdate: ({ editor }) => {
-      onChange(editor.getHTML())
-    },
-  })
+const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
+  function RichTextEditor(
+    { content, onChange, placeholder = 'Start writing...', readOnly = false },
+    ref
+  ) {
+    const editor = useEditor({
+      extensions: [
+        StarterKit.configure({
+          heading: {
+            levels: [1, 2, 3],
+          },
+        }),
+        Underline,
+        TextAlign.configure({
+          types: ['heading', 'paragraph'],
+        }),
+        Placeholder.configure({
+          placeholder,
+        }),
+      ],
+      content,
+      editable: !readOnly,
+      onUpdate: ({ editor }) => {
+        onChange(editor.getHTML())
+      },
+    })
 
-  // Update content when it changes externally
-  useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content)
+    useImperativeHandle(ref, () => ({
+      insertContent: (text: string) => {
+        if (editor) {
+          editor.chain().focus().insertContent(text).run()
+        }
+      },
+      getEditor: () => editor,
+    }))
+
+    // Update content when it changes externally
+    useEffect(() => {
+      if (editor && content !== editor.getHTML()) {
+        editor.commands.setContent(content)
+      }
+    }, [content, editor])
+
+    if (!editor) {
+      return null
     }
-  }, [content, editor])
-
-  if (!editor) {
-    return null
-  }
 
   return (
     <div className="border border-gray-300 rounded-lg overflow-hidden">
@@ -206,4 +219,7 @@ export default function RichTextEditor({
       />
     </div>
   )
-}
+  }
+)
+
+export default RichTextEditor

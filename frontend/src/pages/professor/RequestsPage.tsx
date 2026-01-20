@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, FileText, Calendar, Copy, Search, Filter } from 'lucide-react'
+import { Plus, FileText, Calendar, Copy, Search, Filter, Mail } from 'lucide-react'
 import { format } from 'date-fns'
 import { useRequests, useCreateRequest } from '../../hooks/useRequests'
 import type { LetterRequest, RequestStatus } from 'shared'
@@ -79,12 +79,25 @@ function RequestCard({ request }: { request: LetterRequest }) {
           <span className="text-xs text-gray-400">
             Created {format(new Date(request.createdAt), 'MMM d, yyyy')}
           </span>
-          <Link
-            to={`/requests/${request.id}`}
-            className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-          >
-            View details
-          </Link>
+          <div className="flex items-center gap-3">
+            {request.status === 'PENDING' && (
+              <a
+                href={`mailto:?subject=${encodeURIComponent(`Letter of Recommendation Request`)}&body=${encodeURIComponent(
+                  `Hello,\n\nI've created a letter of recommendation request for you. Please use the following access code to submit your information:\n\nAccess Code: ${request.accessCode}\n\nVisit the platform here: ${window.location.origin}/student\n\nInstructions:\n1. Go to the link above\n2. Enter your access code\n3. Fill out the required information about yourself and the program you're applying to\n4. Upload any supporting documents (resume, transcript, etc.)\n5. Submit your request\n\n${request.deadline ? `Please complete this by: ${format(new Date(request.deadline), 'MMMM d, yyyy')}\n\n` : ''}Thank you!`
+                )}`}
+                className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              >
+                <Mail className="h-4 w-4" />
+                Send to student
+              </a>
+            )}
+            <Link
+              to={`/requests/${request.id}`}
+              className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+            >
+              View details
+            </Link>
+          </div>
         </div>
       </div>
     </div>

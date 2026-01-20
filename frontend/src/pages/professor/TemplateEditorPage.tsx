@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, Eye } from 'lucide-react'
 import {
@@ -8,7 +8,7 @@ import {
   useTemplateVariables,
   usePreviewTemplate,
 } from '../../hooks/useTemplates'
-import RichTextEditor from '../../components/editor/RichTextEditor'
+import RichTextEditor, { RichTextEditorRef } from '../../components/editor/RichTextEditor'
 import VariableInserter from '../../components/editor/VariableInserter'
 
 const DEFAULT_TEMPLATE = `<p>Dear Admissions Committee,</p>
@@ -43,6 +43,7 @@ export default function TemplateEditorPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [previewContent, setPreviewContent] = useState('')
   const [error, setError] = useState('')
+  const editorRef = useRef<RichTextEditorRef>(null)
 
   // Load template data when editing
   useEffect(() => {
@@ -56,8 +57,8 @@ export default function TemplateEditorPage() {
   }, [template])
 
   const handleInsertVariable = (variable: string) => {
-    // Insert at current cursor position or append to content
-    setContent((prev) => prev + variable)
+    // Insert at current cursor position inline
+    editorRef.current?.insertContent(variable)
   }
 
   const handlePreview = async () => {
@@ -259,6 +260,7 @@ export default function TemplateEditorPage() {
             </div>
             <div className="card-body">
               <RichTextEditor
+                ref={editorRef}
                 content={content}
                 onChange={setContent}
                 placeholder="Write your letter template here. Use {{variable_name}} to insert dynamic content."
