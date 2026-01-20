@@ -12,10 +12,15 @@ export interface UpdateLetterInput {
   content: string;
 }
 
+// Placeholders used in master letters for destination-specific values
+export const PLACEHOLDER_INSTITUTION = '[INSTITUTION]';
+export const PLACEHOLDER_PROGRAM = '[PROGRAM]';
+
 // Build variables from request and professor data, with optional destination override
 async function buildVariables(
   requestId: string,
-  destination?: Pick<SubmissionDestination, 'institutionName' | 'programName'> | null
+  destination?: Pick<SubmissionDestination, 'institutionName' | 'programName'> | null,
+  usePlaceholders?: boolean
 ): Promise<Record<string, string>> {
   const request = await prisma.letterRequest.findUnique({
     where: { id: requestId },
@@ -27,6 +32,24 @@ async function buildVariables(
 
   const professor = await prisma.professor.findFirst();
 
+  // For master letters, use placeholders; for destination letters, use actual values
+  let programValue: string;
+  let institutionValue: string;
+
+  if (usePlaceholders) {
+    // Master letter: use placeholders
+    programValue = PLACEHOLDER_PROGRAM;
+    institutionValue = PLACEHOLDER_INSTITUTION;
+  } else if (destination) {
+    // Destination letter: use destination-specific values
+    programValue = destination.programName || request.programApplying || '';
+    institutionValue = destination.institutionName || request.institutionApplying || '';
+  } else {
+    // Fallback: use request values
+    programValue = request.programApplying || '';
+    institutionValue = request.institutionApplying || '';
+  }
+
   const variables: Record<string, string> = {
     // Student info
     student_name: request.studentName || '',
@@ -34,9 +57,9 @@ async function buildVariables(
     student_email: request.studentEmail || '',
     student_phone: request.studentPhone || '',
 
-    // Application info - use destination data if provided, fall back to request
-    program: destination?.programName || request.programApplying || '',
-    institution: destination?.institutionName || request.institutionApplying || '',
+    // Application info
+    program: programValue,
+    institution: institutionValue,
     degree_type: request.degreeType || '',
 
     // Academic info
@@ -87,8 +110,8 @@ export async function generateLetter(data: GenerateLetterInput) {
     throw new AppError('Template not found', 404);
   }
 
-  // Build variables and interpolate
-  const variables = await buildVariables(requestId);
+  // Build variables and interpolate (with placeholders for master letter)
+  const variables = await buildVariables(requestId, null, true);
   const content = interpolateTemplate(template.content, variables);
 
   let letter;
@@ -338,8 +361,8 @@ export async function generateLettersForAllDestinations(data: GenerateLetterInpu
     throw new AppError('Template not found', 404);
   }
 
-  // First generate/update the master letter
-  const masterVariables = await buildVariables(requestId);
+  // First generate/update the master letter (with placeholders for institution/program)
+  const masterVariables = await buildVariables(requestId, null, true);
   const masterContent = interpolateTemplate(template.content, masterVariables);
 
   const existingMaster = await prisma.letter.findFirst({
@@ -448,7 +471,7 @@ export async function getMasterLetter(requestId: string) {
 }
 
 // Sync master letter content to all destination letters
-// This copies the master's actual content, replacing institution/program placeholders
+// This copies the master's actual content, replacing [INSTITUTION] and [PROGRAM] placeholders
 export async function syncMasterToDestinations(requestId: string) {
   // Get master letter
   const masterLetter = await prisma.letter.findFirst({
@@ -460,7 +483,7 @@ export async function syncMasterToDestinations(requestId: string) {
     throw new AppError('No master letter found', 404);
   }
 
-  // Get the request to get default institution/program values
+  // Get the request for fallback values
   const request = await prisma.letterRequest.findUnique({
     where: { id: requestId },
   });
@@ -476,23 +499,21 @@ export async function syncMasterToDestinations(requestId: string) {
 
   const updatedLetters = [];
   for (const destination of destinations) {
-    // Copy master content but replace institution/program with destination-specific values
+    // Copy master content and replace placeholders with destination-specific values
     let destContent = masterLetter.content;
 
-    // Replace the generic institution/program from the request with destination-specific values
-    // This handles both the original template placeholders and any manually typed values
-    if (request.institutionApplying && destination.institutionName) {
-      destContent = destContent.replace(
-        new RegExp(escapeRegExp(request.institutionApplying), 'g'),
-        destination.institutionName
-      );
-    }
-    if (request.programApplying && destination.programName) {
-      destContent = destContent.replace(
-        new RegExp(escapeRegExp(request.programApplying), 'g'),
-        destination.programName
-      );
-    }
+    // Replace placeholders with destination-specific values (or request fallback)
+    const institutionValue = destination.institutionName || request.institutionApplying || '';
+    const programValue = destination.programName || request.programApplying || '';
+
+    destContent = destContent.replace(
+      new RegExp(escapeRegExp(PLACEHOLDER_INSTITUTION), 'g'),
+      institutionValue
+    );
+    destContent = destContent.replace(
+      new RegExp(escapeRegExp(PLACEHOLDER_PROGRAM), 'g'),
+      programValue
+    );
 
     const existingDestLetter = await prisma.letter.findFirst({
       where: { requestId, destinationId: destination.id },

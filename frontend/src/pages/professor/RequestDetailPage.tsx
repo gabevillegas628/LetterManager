@@ -712,7 +712,9 @@ function LetterTab({
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-medium text-gray-900">Master Letter</h3>
             <span className="text-sm text-gray-500">v{masterLetter.version}</span>
-            <span className="text-xs text-gray-400">(Edit here, then sync to destinations)</span>
+            {hasDestinations && (
+              <span className="text-xs text-gray-400">(Edit here, then sync to destinations)</span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -724,6 +726,15 @@ function LetterTab({
             )}
           </div>
         </div>
+
+        {/* Placeholder hint for multi-destination letters */}
+        {hasDestinations && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">
+            <strong>Tip:</strong> Use <code className="bg-blue-100 px-1 rounded">[INSTITUTION]</code> and{' '}
+            <code className="bg-blue-100 px-1 rounded">[PROGRAM]</code> as placeholders. They will be replaced
+            with each destination's specific values when you sync.
+          </div>
+        )}
 
         {/* Editor or Preview for Master */}
         {isEditing && editingLetterId === masterLetter.id ? (
