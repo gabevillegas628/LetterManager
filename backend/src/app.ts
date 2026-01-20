@@ -19,6 +19,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Trust proxy - needed when behind nginx, AWS ELB, etc.
+// Required for rate limiting to work correctly with X-Forwarded-For header
+if (config.nodeEnv === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: config.nodeEnv === 'production' ? {

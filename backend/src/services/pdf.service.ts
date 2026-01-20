@@ -236,7 +236,9 @@ async function generatePdfBuffer(
   page: puppeteer.Page,
   html: string
 ): Promise<{ buffer: Buffer; pageCount: number }> {
-  await page.setContent(html, { waitUntil: 'networkidle0' });
+  // Use 'domcontentloaded' instead of 'networkidle0' to avoid timeouts
+  // since we're rendering static HTML with inline styles (no external resources)
+  await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 15000 });
 
   const pdfUint8Array = await page.pdf({
     format: 'Letter',
