@@ -80,30 +80,32 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo): string
       margin: 0 auto;
     }
 
-    .letterhead-image {
-      text-align: center;
-      margin-bottom: 1em;
-    }
-
-    .letterhead-image img {
-      max-width: 100%;
-      max-height: 100px;
-      object-fit: contain;
-    }
-
     .letterhead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 1.25em;
       padding-bottom: 0.75em;
       border-bottom: 1px solid #c0c0c0;
+      gap: 1em;
     }
 
-    .letterhead-content {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
+    .letterhead-logo {
+      flex-shrink: 0;
     }
 
-    .letterhead-left h1 {
+    .letterhead-logo img {
+      max-width: 180px;
+      max-height: 70px;
+      object-fit: contain;
+    }
+
+    .letterhead-info {
+      flex: 1;
+      text-align: right;
+    }
+
+    .letterhead-info h1 {
       margin: 0;
       font-size: 14pt;
       font-weight: 600;
@@ -111,20 +113,10 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo): string
       letter-spacing: 0.5px;
     }
 
-    .letterhead-left p {
+    .letterhead-info p {
       margin: 2px 0;
       font-size: 9pt;
       color: #666;
-    }
-
-    .letterhead-right {
-      text-align: right;
-      font-size: 9pt;
-      color: #666;
-    }
-
-    .letterhead-right p {
-      margin: 2px 0;
     }
 
     .date {
@@ -198,24 +190,19 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo): string
   </style>
 </head>
 <body>
-  ${letterheadDataUri ? `
-  <div class="letterhead-image">
-    <img src="${letterheadDataUri}" alt="Letterhead" />
-  </div>
-  ` : ''}
-
-  ${professorInfo?.name ? `
+  ${professorInfo?.name || letterheadDataUri ? `
   <div class="letterhead">
-    <div class="letterhead-content">
-      <div class="letterhead-left">
-        <h1>${professorInfo.name}</h1>
-        ${professorInfo.title ? `<p>${professorInfo.title}</p>` : ''}
-      </div>
-      <div class="letterhead-right">
-        ${professorInfo.department ? `<p>${professorInfo.department}</p>` : ''}
-        ${professorInfo.institution ? `<p>${professorInfo.institution}</p>` : ''}
-        ${professorInfo.email ? `<p>${professorInfo.email}</p>` : ''}
-      </div>
+    ${letterheadDataUri ? `
+    <div class="letterhead-logo">
+      <img src="${letterheadDataUri}" alt="Letterhead" />
+    </div>
+    ` : ''}
+    <div class="letterhead-info">
+      ${professorInfo?.name ? `<h1>${professorInfo.name}</h1>` : ''}
+      ${professorInfo?.title ? `<p>${professorInfo.title}</p>` : ''}
+      ${professorInfo?.department ? `<p>${professorInfo.department}</p>` : ''}
+      ${professorInfo?.institution ? `<p>${professorInfo.institution}</p>` : ''}
+      ${professorInfo?.email ? `<p>${professorInfo.email}</p>` : ''}
     </div>
   </div>
   ` : ''}
