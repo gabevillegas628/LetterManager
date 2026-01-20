@@ -286,6 +286,31 @@ export async function deleteLetter(id: string) {
   return { message: 'Letter deleted' };
 }
 
+// Delete all letters for a request (allows starting fresh)
+export async function deleteAllLettersForRequest(requestId: string) {
+  const request = await prisma.letterRequest.findUnique({
+    where: { id: requestId },
+  });
+
+  if (!request) {
+    throw new AppError('Request not found', 404);
+  }
+
+  const deleted = await prisma.letter.deleteMany({
+    where: { requestId },
+  });
+
+  // Reset request status back to SUBMITTED so they can generate again
+  if (request.status === 'IN_PROGRESS' || request.status === 'COMPLETED') {
+    await prisma.letterRequest.update({
+      where: { id: requestId },
+      data: { status: 'SUBMITTED' },
+    });
+  }
+
+  return { message: `Deleted ${deleted.count} letters` };
+}
+
 // Generate letters for all destinations (master + per-destination)
 export async function generateLettersForAllDestinations(data: GenerateLetterInput) {
   const { requestId, templateId } = data;
@@ -423,20 +448,25 @@ export async function getMasterLetter(requestId: string) {
 }
 
 // Sync master letter content to all destination letters
+// This copies the master's actual content, replacing institution/program placeholders
 export async function syncMasterToDestinations(requestId: string) {
   // Get master letter
   const masterLetter = await prisma.letter.findFirst({
     where: { requestId, isMaster: true },
     orderBy: { version: 'desc' },
-    include: { template: true },
   });
 
   if (!masterLetter) {
     throw new AppError('No master letter found', 404);
   }
 
-  if (!masterLetter.template) {
-    throw new AppError('Master letter has no template', 400);
+  // Get the request to get default institution/program values
+  const request = await prisma.letterRequest.findUnique({
+    where: { id: requestId },
+  });
+
+  if (!request) {
+    throw new AppError('Request not found', 404);
   }
 
   // Get all destinations
@@ -446,9 +476,23 @@ export async function syncMasterToDestinations(requestId: string) {
 
   const updatedLetters = [];
   for (const destination of destinations) {
-    // Build destination-specific variables and interpolate master template
-    const destVariables = await buildVariables(requestId, destination);
-    const destContent = interpolateTemplate(masterLetter.template.content, destVariables);
+    // Copy master content but replace institution/program with destination-specific values
+    let destContent = masterLetter.content;
+
+    // Replace the generic institution/program from the request with destination-specific values
+    // This handles both the original template placeholders and any manually typed values
+    if (request.institutionApplying && destination.institutionName) {
+      destContent = destContent.replace(
+        new RegExp(escapeRegExp(request.institutionApplying), 'g'),
+        destination.institutionName
+      );
+    }
+    if (request.programApplying && destination.programName) {
+      destContent = destContent.replace(
+        new RegExp(escapeRegExp(request.programApplying), 'g'),
+        destination.programName
+      );
+    }
 
     const existingDestLetter = await prisma.letter.findFirst({
       where: { requestId, destinationId: destination.id },
@@ -481,6 +525,11 @@ export async function syncMasterToDestinations(requestId: string) {
   }
 
   return updatedLetters;
+}
+
+// Helper to escape special regex characters
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // Get all letters for a request organized by destination

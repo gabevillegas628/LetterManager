@@ -104,6 +104,19 @@ export function useDeleteLetter() {
   })
 }
 
+export function useDeleteAllLetters() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (requestId: string) => lettersApi.deleteAllLettersForRequest(requestId),
+    onSuccess: (_, requestId) => {
+      queryClient.invalidateQueries({ queryKey: ['letters', 'request', requestId] })
+      queryClient.invalidateQueries({ queryKey: ['letters', 'with-destinations', requestId] })
+      queryClient.invalidateQueries({ queryKey: ['requests'] })
+    },
+  })
+}
+
 export function useFinalizeLetter() {
   const queryClient = useQueryClient()
 

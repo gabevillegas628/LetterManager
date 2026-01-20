@@ -93,6 +93,11 @@ export async function deleteLetter(id: string) {
   return response.data
 }
 
+export async function deleteAllLettersForRequest(requestId: string) {
+  const response = await api.delete(`/letters/request/${requestId}/all`)
+  return response.data
+}
+
 export async function finalizeLetter(id: string) {
   const response = await api.post(`/letters/${id}/finalize`)
   return response.data.data as Letter

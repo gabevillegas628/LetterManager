@@ -18,6 +18,7 @@ import {
   Copy,
   RefreshCw,
   Eye,
+  Trash2,
 } from 'lucide-react'
 import { useRequest } from '../../hooks/useRequests'
 import { useTemplates } from '../../hooks/useTemplates'
@@ -30,6 +31,7 @@ import {
   useUpdateLetter,
   useFinalizeLetter,
   useUnfinalizeLetter,
+  useDeleteAllLetters,
   useGeneratePdf,
   useDownloadPdf,
   useSendLetter,
@@ -80,6 +82,7 @@ export default function RequestDetailPage() {
   const updateLetter = useUpdateLetter()
   const finalizeLetter = useFinalizeLetter()
   const unfinalizeLetter = useUnfinalizeLetter()
+  const deleteAllLetters = useDeleteAllLetters()
   const generatePdf = useGeneratePdf()
   const downloadPdf = useDownloadPdf()
   const sendLetter = useSendLetter()
@@ -135,6 +138,22 @@ export default function RequestDetailPage() {
     if (!id) return
     try {
       await syncMasterToDestinations.mutateAsync(id)
+      refetchLetters()
+      refetchLettersWithDest()
+    } catch {
+      // Error handled by mutation
+    }
+  }
+
+  const handleDeleteAllLetters = async () => {
+    if (!id) return
+    if (!window.confirm('Are you sure you want to delete all letters? This will allow you to start fresh with a new template.')) {
+      return
+    }
+    try {
+      await deleteAllLetters.mutateAsync(id)
+      setLetterContent('')
+      setIsEditing(false)
       refetchLetters()
       refetchLettersWithDest()
     } catch {
@@ -335,6 +354,7 @@ export default function RequestDetailPage() {
               onGenerateMaster={handleGenerateLetter}
               onGenerateAll={handleGenerateAllLetters}
               onSyncToDestinations={handleSyncToDestinations}
+              onDeleteAll={handleDeleteAllLetters}
               onSave={handleSaveLetter}
               onFinalize={handleFinalize}
               onUnfinalize={handleUnfinalize}
@@ -343,6 +363,7 @@ export default function RequestDetailPage() {
               isGenerating={generateLetter.isPending}
               isGeneratingAll={generateAllLetters.isPending}
               isSyncing={syncMasterToDestinations.isPending}
+              isDeleting={deleteAllLetters.isPending}
               isSaving={updateLetter.isPending}
               isFinalizing={finalizeLetter.isPending || unfinalizeLetter.isPending}
               isGeneratingPdf={generatePdf.isPending}
@@ -529,6 +550,7 @@ interface LetterTabProps {
   onGenerateMaster: () => void
   onGenerateAll: () => void
   onSyncToDestinations: () => void
+  onDeleteAll: () => void
   onSave: (letterId?: string) => void
   onFinalize: (letterId?: string) => void
   onUnfinalize: (letterId?: string) => void
@@ -537,6 +559,7 @@ interface LetterTabProps {
   isGenerating: boolean
   isGeneratingAll: boolean
   isSyncing: boolean
+  isDeleting: boolean
   isSaving: boolean
   isFinalizing: boolean
   isGeneratingPdf: boolean
@@ -558,6 +581,7 @@ function LetterTab({
   onGenerateMaster,
   onGenerateAll,
   onSyncToDestinations,
+  onDeleteAll,
   onSave,
   onFinalize,
   onUnfinalize,
@@ -566,6 +590,7 @@ function LetterTab({
   isGenerating,
   isGeneratingAll,
   isSyncing,
+  isDeleting,
   isSaving,
   isFinalizing,
   isGeneratingPdf,
@@ -687,38 +712,15 @@ function LetterTab({
           <div className="flex items-center gap-3">
             <h3 className="text-lg font-medium text-gray-900">Master Letter</h3>
             <span className="text-sm text-gray-500">v{masterLetter.version}</span>
-            {masterLetter.isFinalized ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                <Lock className="h-3 w-3" />
-                Finalized
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                <Edit className="h-3 w-3" />
-                Draft
-              </span>
-            )}
+            <span className="text-xs text-gray-400">(Edit here, then sync to destinations)</span>
           </div>
 
           <div className="flex items-center gap-2">
-            {!masterLetter.isFinalized && !isEditing && (
+            {!isEditing && (
               <button onClick={() => handleStartEdit(masterLetter)} className="btn-secondary">
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </button>
-            )}
-            {masterLetter.isFinalized ? (
-              <button onClick={() => onUnfinalize(masterLetter.id)} disabled={isFinalizing} className="btn-secondary">
-                {isFinalizing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Unlock className="h-4 w-4 mr-2" />}
-                Unlock
-              </button>
-            ) : (
-              !isEditing && (
-                <button onClick={() => onFinalize(masterLetter.id)} disabled={isFinalizing} className="btn-primary">
-                  {isFinalizing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
-                  Finalize
-                </button>
-              )
             )}
           </div>
         </div>
@@ -727,7 +729,7 @@ function LetterTab({
         {isEditing && editingLetterId === masterLetter.id ? (
           <div className="space-y-4">
             <RichTextEditor content={letterContent} onChange={setLetterContent} placeholder="Write your letter..." />
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center flex-wrap gap-4">
               <div className="flex gap-2">
                 <button onClick={handleCancelEdit} className="btn-secondary">
                   Cancel
@@ -744,16 +746,21 @@ function LetterTab({
                 </button>
               </div>
               {hasDestinations && (
-                <button onClick={onSyncToDestinations} disabled={isSyncing} className="btn-secondary">
+                <button
+                  onClick={onSyncToDestinations}
+                  disabled={isSyncing}
+                  className="btn-primary"
+                  title="Copies your edits to all destination letters, replacing institution/program names"
+                >
                   {isSyncing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Applying...
+                      Syncing...
                     </>
                   ) : (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Apply to All Destinations
+                      Save & Sync to All Destinations
                     </>
                   )}
                 </button>
@@ -768,16 +775,21 @@ function LetterTab({
             />
             {hasDestinations && !isEditing && (
               <div className="mt-4 flex justify-end">
-                <button onClick={onSyncToDestinations} disabled={isSyncing} className="btn-secondary">
+                <button
+                  onClick={onSyncToDestinations}
+                  disabled={isSyncing}
+                  className="btn-secondary"
+                  title="Copies the master letter content to all destination letters, replacing institution/program names"
+                >
                   {isSyncing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Applying...
+                      Syncing...
                     </>
                   ) : (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Apply to All Destinations
+                      Sync to All Destinations
                     </>
                   )}
                 </button>
@@ -809,10 +821,17 @@ function LetterTab({
                         )}
                         {destLetter ? (
                           destLetter.isFinalized ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              <Lock className="h-3 w-3" />
-                              Finalized
-                            </span>
+                            destLetter.pdfPath ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <Check className="h-3 w-3" />
+                                PDF Ready
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                <Lock className="h-3 w-3" />
+                                Locked
+                              </span>
+                            )
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                               <Edit className="h-3 w-3" />
@@ -856,6 +875,7 @@ function LetterTab({
                           <button
                             onClick={() => handleStartEdit(destLetter)}
                             className="btn-ghost text-sm px-3 py-1.5"
+                            title="Edit this letter"
                           >
                             <Edit className="h-4 w-4" />
                           </button>
@@ -865,10 +885,10 @@ function LetterTab({
                             <button
                               onClick={() => onGeneratePdf(destLetter.id)}
                               disabled={isGeneratingPdf}
-                              className="btn-ghost text-sm px-3 py-1.5"
+                              className="btn-primary text-sm px-3 py-1.5"
                               title={destLetter.pdfPath ? 'Regenerate PDF' : 'Generate PDF'}
                             >
-                              {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                              {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                             </button>
                             {destLetter.pdfPath && (
                               <button
@@ -889,7 +909,7 @@ function LetterTab({
                               onClick={() => onUnfinalize(destLetter.id)}
                               disabled={isFinalizing}
                               className="btn-ghost text-sm px-3 py-1.5"
-                              title="Unlock for editing"
+                              title="Unlock to make edits"
                             >
                               {isFinalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Unlock className="h-4 w-4" />}
                             </button>
@@ -899,9 +919,9 @@ function LetterTab({
                             onClick={() => onFinalize(destLetter.id)}
                             disabled={isFinalizing}
                             className="btn-primary text-sm px-3 py-1.5"
-                            title="Finalize"
+                            title="Lock letter & enable PDF generation"
                           >
-                            {isFinalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                            {isFinalizing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                           </button>
                         )}
                       </div>
@@ -914,10 +934,13 @@ function LetterTab({
         </div>
       )}
 
-      {/* Regenerate Section */}
+      {/* Template Options Section */}
       <div className="border-t pt-6">
-        <h4 className="text-sm font-medium text-gray-900 mb-4">Regenerate Letters</h4>
-        <div className="flex items-center gap-4">
+        <h4 className="text-sm font-medium text-gray-900 mb-2">Template Options</h4>
+        <p className="text-sm text-gray-500 mb-4">
+          Regenerate from a template (overwrites current content) or start fresh.
+        </p>
+        <div className="flex items-center gap-4 flex-wrap">
           <select
             value={selectedTemplateId}
             onChange={(e) => setSelectedTemplateId(e.target.value)}
@@ -935,6 +958,7 @@ function LetterTab({
               onClick={onGenerateAll}
               disabled={!selectedTemplateId || isGeneratingAll}
               className="btn-secondary"
+              title="Regenerates all letters from the selected template, replacing current content"
             >
               {isGeneratingAll ? (
                 <>
@@ -944,7 +968,7 @@ function LetterTab({
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Regenerate All
+                  Regenerate from Template
                 </>
               )}
             </button>
@@ -953,6 +977,7 @@ function LetterTab({
               onClick={onGenerateMaster}
               disabled={!selectedTemplateId || isGenerating}
               className="btn-secondary"
+              title="Regenerates the letter from the selected template, replacing current content"
             >
               {isGenerating ? (
                 <>
@@ -962,11 +987,31 @@ function LetterTab({
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Regenerate
+                  Regenerate from Template
                 </>
               )}
             </button>
           )}
+          <div className="border-l pl-4 ml-2">
+            <button
+              onClick={onDeleteAll}
+              disabled={isDeleting}
+              className="btn-ghost text-red-600 hover:bg-red-50"
+              title="Delete all letters and start fresh with a new template"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Start Fresh
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -102,6 +102,17 @@ router.post('/request/:requestId/sync', async (req: AuthRequest, res: Response, 
   }
 });
 
+// DELETE /api/letters/request/:requestId/all - Delete all letters for a request
+router.delete('/request/:requestId/all', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const requestId = req.params.requestId as string;
+    const result = await letterService.deleteAllLettersForRequest(requestId);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/letters/:id - Get letter details
 router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
