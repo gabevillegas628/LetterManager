@@ -30,6 +30,7 @@ async function buildVariables(
   const variables: Record<string, string> = {
     // Student info
     student_name: request.studentName || '',
+    student_first_name: request.studentName?.split(' ')[0] || '',
     student_email: request.studentEmail || '',
     student_phone: request.studentPhone || '',
 

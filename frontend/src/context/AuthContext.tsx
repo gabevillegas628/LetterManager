@@ -9,6 +9,10 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   logout: () => void
   updateProfile: (data: Partial<Professor>) => Promise<void>
+  uploadLetterhead: (file: File) => Promise<void>
+  deleteLetterhead: () => Promise<void>
+  uploadSignature: (file: File) => Promise<void>
+  deleteSignature: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -55,6 +59,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfessor(response.data.data)
   }
 
+  const uploadLetterhead = async (file: File) => {
+    const formData = new FormData()
+    formData.append('letterhead', file)
+    const response = await api.post('/auth/letterhead', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    setProfessor(response.data.data)
+  }
+
+  const deleteLetterhead = async () => {
+    const response = await api.delete('/auth/letterhead')
+    setProfessor(response.data.data)
+  }
+
+  const uploadSignature = async (file: File) => {
+    const formData = new FormData()
+    formData.append('signature', file)
+    const response = await api.post('/auth/signature', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    setProfessor(response.data.data)
+  }
+
+  const deleteSignature = async () => {
+    const response = await api.delete('/auth/signature')
+    setProfessor(response.data.data)
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -64,6 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         updateProfile,
+        uploadLetterhead,
+        deleteLetterhead,
+        uploadSignature,
+        deleteSignature,
       }}
     >
       {children}

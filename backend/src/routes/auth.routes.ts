@@ -1,8 +1,50 @@
 import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { nanoid } from 'nanoid';
 import { authLimiter } from '../middleware/rateLimit.middleware.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware.js';
 import * as authService from '../services/auth.service.js';
+import { config } from '../config/index.js';
+
+// Image upload configuration for professor images
+const imageDir = path.join(config.uploadDir, 'professor-images');
+if (!fs.existsSync(imageDir)) {
+  fs.mkdirSync(imageDir, { recursive: true });
+}
+
+const imageStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, imageDir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${nanoid(16)}${ext}`);
+  },
+});
+
+const imageFilter = (
+  _req: Express.Request,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  const allowedMimes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PNG, JPG, GIF, and WebP images are allowed'));
+  }
+};
+
+const imageUpload = multer({
+  storage: imageStorage,
+  fileFilter: imageFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB max for images
+  },
+});
 
 const router = Router();
 
@@ -112,6 +154,120 @@ router.put(
         data.newPassword
       );
       res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /api/auth/letterhead - Upload letterhead image
+router.post(
+  '/letterhead',
+  authMiddleware,
+  imageUpload.single('letterhead'),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ success: false, error: 'No file uploaded' });
+        return;
+      }
+
+      const professor = await authService.updateLetterheadImage(
+        req.professorId!,
+        req.file.path
+      );
+      res.json({ success: true, data: professor });
+    } catch (error) {
+      // Clean up uploaded file on error
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      next(error);
+    }
+  }
+);
+
+// DELETE /api/auth/letterhead - Delete letterhead image
+router.delete(
+  '/letterhead',
+  authMiddleware,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const professor = await authService.deleteLetterheadImage(req.professorId!);
+      res.json({ success: true, data: professor });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /api/auth/signature - Upload signature image
+router.post(
+  '/signature',
+  authMiddleware,
+  imageUpload.single('signature'),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ success: false, error: 'No file uploaded' });
+        return;
+      }
+
+      const professor = await authService.updateSignatureImage(
+        req.professorId!,
+        req.file.path
+      );
+      res.json({ success: true, data: professor });
+    } catch (error) {
+      // Clean up uploaded file on error
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      next(error);
+    }
+  }
+);
+
+// DELETE /api/auth/signature - Delete signature image
+router.delete(
+  '/signature',
+  authMiddleware,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const professor = await authService.deleteSignatureImage(req.professorId!);
+      res.json({ success: true, data: professor });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// GET /api/auth/images/:type - Serve professor images (protected for now)
+router.get(
+  '/images/:type',
+  authMiddleware,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { type } = req.params;
+      const imagePath = await authService.getImagePath(req.professorId!, type as 'letterhead' | 'signature');
+
+      if (!imagePath || !fs.existsSync(imagePath)) {
+        res.status(404).json({ success: false, error: 'Image not found' });
+        return;
+      }
+
+      const ext = path.extname(imagePath).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+      };
+
+      res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      fs.createReadStream(imagePath).pipe(res);
     } catch (error) {
       next(error);
     }

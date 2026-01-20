@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
 import { config } from '../config/index.js';
 import { prisma } from '../db/index.js';
 import { AppError } from '../middleware/error.middleware.js';
@@ -13,6 +14,8 @@ export interface ProfessorResponse {
   title: string | null;
   department: string | null;
   institution: string | null;
+  hasLetterhead: boolean;
+  hasSignature: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,13 +28,19 @@ function excludePassword(professor: {
   department: string | null;
   institution: string | null;
   signature: string | null;
+  letterheadImage: string | null;
+  signatureImage: string | null;
   passwordHash: string;
   createdAt: Date;
   updatedAt: Date;
 }): ProfessorResponse {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { passwordHash, signature, ...rest } = professor;
-  return rest;
+  const { passwordHash, signature, letterheadImage, signatureImage, ...rest } = professor;
+  return {
+    ...rest,
+    hasLetterhead: !!letterheadImage,
+    hasSignature: !!signatureImage,
+  };
 }
 
 export function generateToken(professorId: string): string {
@@ -183,4 +192,133 @@ export async function changePassword(
 export async function needsSetup(): Promise<boolean> {
   const count = await prisma.professor.count();
   return count === 0;
+}
+
+export async function updateLetterheadImage(
+  professorId: string,
+  imagePath: string
+): Promise<ProfessorResponse> {
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+  });
+
+  if (!professor) {
+    throw new AppError('Professor not found', 404);
+  }
+
+  // Delete old letterhead if exists
+  if (professor.letterheadImage && fs.existsSync(professor.letterheadImage)) {
+    try {
+      fs.unlinkSync(professor.letterheadImage);
+    } catch {
+      // Ignore deletion errors
+    }
+  }
+
+  const updated = await prisma.professor.update({
+    where: { id: professorId },
+    data: { letterheadImage: imagePath },
+  });
+
+  return excludePassword(updated);
+}
+
+export async function deleteLetterheadImage(
+  professorId: string
+): Promise<ProfessorResponse> {
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+  });
+
+  if (!professor) {
+    throw new AppError('Professor not found', 404);
+  }
+
+  // Delete file if exists
+  if (professor.letterheadImage && fs.existsSync(professor.letterheadImage)) {
+    try {
+      fs.unlinkSync(professor.letterheadImage);
+    } catch {
+      // Ignore deletion errors
+    }
+  }
+
+  const updated = await prisma.professor.update({
+    where: { id: professorId },
+    data: { letterheadImage: null },
+  });
+
+  return excludePassword(updated);
+}
+
+export async function updateSignatureImage(
+  professorId: string,
+  imagePath: string
+): Promise<ProfessorResponse> {
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+  });
+
+  if (!professor) {
+    throw new AppError('Professor not found', 404);
+  }
+
+  // Delete old signature if exists
+  if (professor.signatureImage && fs.existsSync(professor.signatureImage)) {
+    try {
+      fs.unlinkSync(professor.signatureImage);
+    } catch {
+      // Ignore deletion errors
+    }
+  }
+
+  const updated = await prisma.professor.update({
+    where: { id: professorId },
+    data: { signatureImage: imagePath },
+  });
+
+  return excludePassword(updated);
+}
+
+export async function deleteSignatureImage(
+  professorId: string
+): Promise<ProfessorResponse> {
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+  });
+
+  if (!professor) {
+    throw new AppError('Professor not found', 404);
+  }
+
+  // Delete file if exists
+  if (professor.signatureImage && fs.existsSync(professor.signatureImage)) {
+    try {
+      fs.unlinkSync(professor.signatureImage);
+    } catch {
+      // Ignore deletion errors
+    }
+  }
+
+  const updated = await prisma.professor.update({
+    where: { id: professorId },
+    data: { signatureImage: null },
+  });
+
+  return excludePassword(updated);
+}
+
+export async function getImagePath(
+  professorId: string,
+  type: 'letterhead' | 'signature'
+): Promise<string | null> {
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+  });
+
+  if (!professor) {
+    throw new AppError('Professor not found', 404);
+  }
+
+  return type === 'letterhead' ? professor.letterheadImage : professor.signatureImage;
 }

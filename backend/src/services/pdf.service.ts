@@ -12,8 +12,54 @@ if (!fs.existsSync(pdfDir)) {
   fs.mkdirSync(pdfDir, { recursive: true });
 }
 
+// Convert image file to base64 data URI
+function imageToBase64(imagePath: string): string | null {
+  try {
+    if (!fs.existsSync(imagePath)) {
+      return null;
+    }
+    const imageBuffer = fs.readFileSync(imagePath);
+    const ext = path.extname(imagePath).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
+    const mimeType = mimeTypes[ext] || 'image/png';
+    return `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+interface PdfProfessorInfo {
+  name?: string;
+  title?: string;
+  department?: string;
+  institution?: string;
+  email?: string;
+  letterheadImage?: string | null;
+  signatureImage?: string | null;
+}
+
 // HTML template for PDF
-function buildPdfHtml(content: string, professorInfo?: { name?: string; title?: string; department?: string; institution?: string }): string {
+function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo): string {
+  const today = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  // Convert images to base64 if they exist
+  const letterheadDataUri = professorInfo?.letterheadImage
+    ? imageToBase64(professorInfo.letterheadImage)
+    : null;
+  const signatureDataUri = professorInfo?.signatureImage
+    ? imageToBase64(professorInfo.signatureImage)
+    : null;
+
   return `
 <!DOCTYPE html>
 <html>
@@ -22,67 +68,114 @@ function buildPdfHtml(content: string, professorInfo?: { name?: string; title?: 
   <style>
     @page {
       size: letter;
-      margin: 1in;
+      margin: 0.75in 1in;
     }
 
     body {
-      font-family: 'Times New Roman', Times, serif;
-      font-size: 12pt;
-      line-height: 1.6;
-      color: #000;
+      font-family: 'Georgia', 'Times New Roman', Times, serif;
+      font-size: 11pt;
+      line-height: 1.5;
+      color: #1a1a1a;
       max-width: 6.5in;
       margin: 0 auto;
     }
 
-    .letterhead {
+    .letterhead-image {
       text-align: center;
-      margin-bottom: 2em;
-      padding-bottom: 1em;
-      border-bottom: 2px solid #333;
+      margin-bottom: 1em;
     }
 
-    .letterhead h1 {
+    .letterhead-image img {
+      max-width: 100%;
+      max-height: 100px;
+      object-fit: contain;
+    }
+
+    .letterhead {
+      margin-bottom: 1.25em;
+      padding-bottom: 0.75em;
+      border-bottom: 1px solid #c0c0c0;
+    }
+
+    .letterhead-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .letterhead-left h1 {
       margin: 0;
-      font-size: 18pt;
-      font-weight: bold;
+      font-size: 14pt;
+      font-weight: 600;
+      color: #2c3e50;
+      letter-spacing: 0.5px;
     }
 
-    .letterhead p {
-      margin: 0.25em 0;
-      font-size: 10pt;
-      color: #555;
+    .letterhead-left p {
+      margin: 2px 0;
+      font-size: 9pt;
+      color: #666;
+    }
+
+    .letterhead-right {
+      text-align: right;
+      font-size: 9pt;
+      color: #666;
+    }
+
+    .letterhead-right p {
+      margin: 2px 0;
     }
 
     .date {
-      text-align: right;
-      margin-bottom: 2em;
+      margin: 1.5em 0;
+      font-size: 11pt;
     }
 
     .content {
       text-align: justify;
+      hyphens: auto;
     }
 
     .content p {
-      margin: 1em 0;
+      margin: 0.75em 0;
       text-indent: 0;
     }
 
-    .signature {
-      margin-top: 3em;
+    .content p:first-of-type {
+      margin-top: 0;
     }
 
-    .signature-line {
-      margin-top: 4em;
-      border-top: 1px solid #000;
-      width: 200px;
+    .signature-section {
+      margin-top: 2em;
+    }
+
+    .signature-image {
+      margin: 1em 0;
+    }
+
+    .signature-image img {
+      max-height: 60px;
+      object-fit: contain;
+    }
+
+    .signature-name {
+      margin-top: 0.5em;
+      font-weight: 600;
+    }
+
+    .signature-title {
+      font-size: 10pt;
+      color: #666;
     }
 
     h1, h2, h3 {
-      font-weight: bold;
+      font-weight: 600;
+      color: #2c3e50;
     }
 
     strong, b {
-      font-weight: bold;
+      font-weight: 600;
     }
 
     em, i {
@@ -90,28 +183,62 @@ function buildPdfHtml(content: string, professorInfo?: { name?: string; title?: 
     }
 
     ul, ol {
-      margin: 1em 0;
-      padding-left: 2em;
+      margin: 0.75em 0;
+      padding-left: 1.5em;
     }
 
     li {
-      margin: 0.5em 0;
+      margin: 0.35em 0;
+    }
+
+    /* Clean up any extra spacing from rich text editor */
+    .content br + br {
+      display: none;
     }
   </style>
 </head>
 <body>
-  ${professorInfo?.name ? `
-  <div class="letterhead">
-    <h1>${professorInfo.name}</h1>
-    ${professorInfo.title ? `<p>${professorInfo.title}</p>` : ''}
-    ${professorInfo.department ? `<p>${professorInfo.department}</p>` : ''}
-    ${professorInfo.institution ? `<p>${professorInfo.institution}</p>` : ''}
+  ${letterheadDataUri ? `
+  <div class="letterhead-image">
+    <img src="${letterheadDataUri}" alt="Letterhead" />
   </div>
   ` : ''}
+
+  ${professorInfo?.name ? `
+  <div class="letterhead">
+    <div class="letterhead-content">
+      <div class="letterhead-left">
+        <h1>${professorInfo.name}</h1>
+        ${professorInfo.title ? `<p>${professorInfo.title}</p>` : ''}
+      </div>
+      <div class="letterhead-right">
+        ${professorInfo.department ? `<p>${professorInfo.department}</p>` : ''}
+        ${professorInfo.institution ? `<p>${professorInfo.institution}</p>` : ''}
+        ${professorInfo.email ? `<p>${professorInfo.email}</p>` : ''}
+      </div>
+    </div>
+  </div>
+  ` : ''}
+
+  <div class="date">${today}</div>
 
   <div class="content">
     ${content}
   </div>
+
+  ${professorInfo?.name || signatureDataUri ? `
+  <div class="signature-section">
+    <p>Sincerely,</p>
+    ${signatureDataUri ? `
+    <div class="signature-image">
+      <img src="${signatureDataUri}" alt="Signature" />
+    </div>
+    ` : '<br><br><br>'}
+    ${professorInfo?.name ? `<div class="signature-name">${professorInfo.name}</div>` : ''}
+    ${professorInfo?.title ? `<div class="signature-title">${professorInfo.title}</div>` : ''}
+    ${professorInfo?.institution ? `<div class="signature-title">${professorInfo.institution}</div>` : ''}
+  </div>
+  ` : ''}
 </body>
 </html>
 `;
@@ -139,6 +266,9 @@ export async function generatePdf(letterId: string): Promise<string> {
     title: professor.title ?? undefined,
     department: professor.department ?? undefined,
     institution: professor.institution ?? undefined,
+    email: professor.email ?? undefined,
+    letterheadImage: professor.letterheadImage,
+    signatureImage: professor.signatureImage,
   } : undefined;
 
   const html = buildPdfHtml(letter.content, professorInfo);

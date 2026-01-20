@@ -68,6 +68,12 @@ function RequestCard({ request }: { request: LetterRequest }) {
           </div>
         )}
 
+        {request.professorNotes && (
+          <p className="text-sm text-gray-600 mb-3 italic">
+            "{request.professorNotes}"
+          </p>
+        )}
+
         {request.institutionApplying && (
           <p className="text-sm text-gray-600 mb-3">
             Applying to: {request.institutionApplying}
@@ -204,7 +210,7 @@ export default function RequestsPage() {
   const handleCreate = async (formData: { deadline?: string; professorNotes?: string }) => {
     try {
       await createRequest.mutateAsync({
-        deadline: formData.deadline,
+        deadline: formData.deadline ? new Date(formData.deadline).toISOString() : undefined,
         professorNotes: formData.professorNotes,
       })
       setShowCreateModal(false)

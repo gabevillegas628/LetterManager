@@ -16,6 +16,8 @@ export interface Professor {
   department?: string;
   institution?: string;
   signature?: string;
+  hasLetterhead?: boolean;
+  hasSignature?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -12,16 +12,18 @@ datasource db {
 
 // Professor (single user)
 model Professor {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  name         String
-  title        String?  // e.g., "Associate Professor"
-  department   String?
-  institution  String?
-  signature    String?  // Base64 or file path
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String   @map("password_hash")
+  name            String
+  title           String?  // e.g., "Associate Professor"
+  department      String?
+  institution     String?
+  signature       String?  // Base64 or file path (legacy)
+  letterheadImage String?  @map("letterhead_image") // Path to letterhead image
+  signatureImage  String?  @map("signature_image")  // Path to signature image
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("professor")
 }

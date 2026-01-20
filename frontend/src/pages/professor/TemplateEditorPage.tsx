@@ -73,6 +73,7 @@ export default function TemplateEditorPage() {
         let preview = content
         const sampleData: Record<string, string> = {
           student_name: 'Jane Smith',
+          student_first_name: 'Jane',
           student_email: 'jane.smith@example.com',
           program: 'Master of Science in Computer Science',
           institution: 'Stanford University',
@@ -277,15 +278,13 @@ export default function TemplateEditorPage() {
             </div>
             <div className="card-body">
               <p className="text-sm text-gray-500 mb-4">
-                Click a variable to copy it, then paste it into your template.
+                Click a variable to insert it into your template.
               </p>
               <div className="space-y-2">
                 {variables.map((variable) => (
                   <button
                     key={variable.name}
-                    onClick={() => {
-                      navigator.clipboard.writeText(`{{${variable.name}}}`)
-                    }}
+                    onClick={() => handleInsertVariable(`{{${variable.name}}}`)}
                     className="w-full text-left p-2 rounded border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition-colors"
                   >
                     <code className="text-sm text-primary-600">{`{{${variable.name}}}`}</code>

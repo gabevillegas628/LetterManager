@@ -166,6 +166,7 @@ export function interpolateTemplate(
 export function getSampleVariables(): Record<string, string> {
   return {
     student_name: 'Jane Smith',
+    student_first_name: 'Jane',
     student_email: 'jane.smith@example.com',
     program: 'Master of Science in Computer Science',
     institution: 'Stanford University',
@@ -187,6 +188,7 @@ export function getSampleVariables(): Record<string, string> {
 // System variables available for templates
 export const SYSTEM_VARIABLES: TemplateVariable[] = [
   { name: 'student_name', description: 'Student full name', category: 'Student' },
+  { name: 'student_first_name', description: 'Student first name', category: 'Student' },
   { name: 'student_email', description: 'Student email', category: 'Student' },
   { name: 'program', description: 'Program applying to', category: 'Application' },
   { name: 'institution', description: 'Institution applying to', category: 'Application' },
