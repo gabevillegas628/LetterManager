@@ -45,7 +45,7 @@ interface PdfProfessorInfo {
 }
 
 // HTML template for PDF
-function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo): string {
+function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSizePt: number = 11): string {
   const today = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -73,7 +73,7 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo): string
 
     body {
       font-family: 'Georgia', 'Times New Roman', Times, serif;
-      font-size: 11pt;
+      font-size: ${fontSizePt}pt;
       line-height: 1.5;
       color: #1a1a1a;
       max-width: 6.5in;
@@ -231,6 +231,36 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo): string
 `;
 }
 
+// Helper to generate PDF buffer and get page count
+async function generatePdfBuffer(
+  page: puppeteer.Page,
+  html: string
+): Promise<{ buffer: Buffer; pageCount: number }> {
+  await page.setContent(html, { waitUntil: 'networkidle0' });
+
+  const pdfUint8Array = await page.pdf({
+    format: 'Letter',
+    margin: {
+      top: '1in',
+      right: '1in',
+      bottom: '1in',
+      left: '1in',
+    },
+    printBackground: true,
+  });
+
+  // Convert Uint8Array to Buffer
+  const pdfBuffer = Buffer.from(pdfUint8Array);
+
+  // Count pages by looking for page markers in the PDF
+  // PDF page objects contain "/Type /Page" entries
+  const pdfString = pdfBuffer.toString('latin1');
+  const pageMatches = pdfString.match(/\/Type\s*\/Page[^s]/g);
+  const pageCount = pageMatches ? pageMatches.length : 1;
+
+  return { buffer: pdfBuffer, pageCount };
+}
+
 // Generate PDF from letter content
 export async function generatePdf(letterId: string): Promise<string> {
   const letter = await prisma.letter.findUnique({
@@ -258,8 +288,6 @@ export async function generatePdf(letterId: string): Promise<string> {
     signatureImage: professor.signatureImage,
   } : undefined;
 
-  const html = buildPdfHtml(letter.content, professorInfo);
-
   // Launch Puppeteer
   const browser = await puppeteer.launch({
     headless: true,
@@ -268,23 +296,33 @@ export async function generatePdf(letterId: string): Promise<string> {
 
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    // Generate PDF
+    // Try with default font size (11pt)
+    const defaultFontSize = 11;
+    const htmlDefault = buildPdfHtml(letter.content, professorInfo, defaultFontSize);
+    const { buffer: defaultBuffer, pageCount: defaultPageCount } = await generatePdfBuffer(page, htmlDefault);
+
+    let finalBuffer = defaultBuffer;
+    let usedFontSize = defaultFontSize;
+
+    // If we got 2 pages, try with smaller font to see if it fits on 1 page
+    if (defaultPageCount === 2) {
+      const smallerFontSize = 10;
+      const htmlSmaller = buildPdfHtml(letter.content, professorInfo, smallerFontSize);
+      const { buffer: smallerBuffer, pageCount: smallerPageCount } = await generatePdfBuffer(page, htmlSmaller);
+
+      // Only use smaller font if it actually reduces to 1 page
+      if (smallerPageCount === 1) {
+        finalBuffer = smallerBuffer;
+        usedFontSize = smallerFontSize;
+        console.log(`PDF for letter ${letterId}: Reduced font from ${defaultFontSize}pt to ${usedFontSize}pt to fit on 1 page`);
+      }
+    }
+
+    // Save the PDF
     const pdfFileName = `letter-${letter.requestId}-${nanoid(8)}.pdf`;
     const pdfPath = path.join(pdfDir, pdfFileName);
-
-    await page.pdf({
-      path: pdfPath,
-      format: 'Letter',
-      margin: {
-        top: '1in',
-        right: '1in',
-        bottom: '1in',
-        left: '1in',
-      },
-      printBackground: true,
-    });
+    fs.writeFileSync(pdfPath, finalBuffer);
 
     // Delete old PDF if exists
     if (letter.pdfPath && fs.existsSync(letter.pdfPath)) {
