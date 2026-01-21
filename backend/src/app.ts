@@ -35,6 +35,8 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "blob:"],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
+      frameSrc: ["'self'", "blob:"], // Allow blob URLs in iframes (PDF preview)
+      objectSrc: ["'self'", "blob:"], // Allow blob URLs for embedded objects (PDF)
     },
   } : false, // Disable CSP in development for easier debugging
   crossOriginResourcePolicy: { policy: 'same-site' },
