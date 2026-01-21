@@ -77,3 +77,9 @@ export function usePreviewTemplate() {
       templatesApi.previewTemplate(id, variables),
   })
 }
+
+export function usePreviewTemplatePdf() {
+  return useMutation({
+    mutationFn: (content: string) => templatesApi.previewTemplatePdf(content),
+  })
+}

@@ -44,3 +44,8 @@ export async function previewTemplate(id: string, variables?: Record<string, str
   const response = await api.post(`/templates/${id}/preview`, { variables })
   return response.data.data as { preview: string; variables: Record<string, string> }
 }
+
+export async function previewTemplatePdf(content: string): Promise<Blob> {
+  const response = await api.post('/templates/preview-pdf', { content }, { responseType: 'blob' })
+  return response.data as Blob
+}

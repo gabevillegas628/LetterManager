@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Eye } from 'lucide-react'
+import { ArrowLeft, Save, Eye, Loader2 } from 'lucide-react'
 import {
   useTemplate,
   useCreateTemplate,
   useUpdateTemplate,
   useTemplateVariables,
-  usePreviewTemplate,
+  usePreviewTemplatePdf,
 } from '../../hooks/useTemplates'
 import RichTextEditor, { RichTextEditorRef } from '../../components/editor/RichTextEditor'
 import VariableInserter from '../../components/editor/VariableInserter'
@@ -33,7 +33,7 @@ export default function TemplateEditorPage() {
   const { data: variables = [] } = useTemplateVariables()
   const createTemplate = useCreateTemplate()
   const updateTemplate = useUpdateTemplate()
-  const previewTemplate = usePreviewTemplate()
+  const previewPdf = usePreviewTemplatePdf()
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -41,7 +41,7 @@ export default function TemplateEditorPage() {
   const [category, setCategory] = useState('')
   const [isDefault, setIsDefault] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
-  const [previewContent, setPreviewContent] = useState('')
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null)
   const [error, setError] = useState('')
   const editorRef = useRef<RichTextEditorRef>(null)
 
@@ -62,43 +62,28 @@ export default function TemplateEditorPage() {
   }
 
   const handlePreview = async () => {
-    if (!id && !content) return
+    if (!content) return
 
     try {
-      if (id) {
-        const result = await previewTemplate.mutateAsync({ id })
-        setPreviewContent(result.preview)
-      } else {
-        // For new templates, just show with sample replacements
-        let preview = content
-        const sampleData: Record<string, string> = {
-          student_name: 'Jane Smith',
-          student_first_name: 'Jane',
-          student_email: 'jane.smith@example.com',
-          program: 'Master of Science in Computer Science',
-          institution: 'Stanford University',
-          degree_type: 'MS',
-          course_taken: 'CS 101 - Introduction to Programming',
-          grade: 'A',
-          semester_year: 'Fall 2024',
-          professor_name: 'Dr. John Doe',
-          professor_title: 'Associate Professor',
-          department: 'Computer Science',
-          date: new Date().toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          }),
-        }
-        for (const [key, value] of Object.entries(sampleData)) {
-          const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'gi')
-          preview = preview.replace(regex, value)
-        }
-        setPreviewContent(preview)
+      // Revoke old URL if exists
+      if (previewPdfUrl) {
+        URL.revokeObjectURL(previewPdfUrl)
       }
+
+      const pdfBlob = await previewPdf.mutateAsync(content)
+      const url = URL.createObjectURL(pdfBlob)
+      setPreviewPdfUrl(url)
       setShowPreview(true)
     } catch {
       setError('Failed to generate preview')
+    }
+  }
+
+  const handleClosePreview = () => {
+    setShowPreview(false)
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl)
+      setPreviewPdfUrl(null)
     }
   }
 
@@ -169,9 +154,13 @@ export default function TemplateEditorPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button onClick={handlePreview} className="btn-secondary">
-            <Eye className="h-4 w-4 mr-2" />
-            Preview
+          <button onClick={handlePreview} disabled={previewPdf.isPending} className="btn-secondary">
+            {previewPdf.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Eye className="h-4 w-4 mr-2" />
+            )}
+            {previewPdf.isPending ? 'Generating...' : 'Preview'}
           </button>
           <button
             onClick={handleSave}
@@ -316,24 +305,31 @@ export default function TemplateEditorPage() {
       {/* Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[80vh] overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold">Template Preview</h3>
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
+              <h3 className="text-lg font-semibold">Template Preview (PDF)</h3>
               <button
-                onClick={() => setShowPreview(false)}
-                className="text-gray-400 hover:text-gray-600"
+                onClick={handleClosePreview}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
               >
                 &times;
               </button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              <div
-                className="prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: previewContent }}
-              />
+            <div className="flex-1 min-h-0">
+              {previewPdfUrl ? (
+                <iframe
+                  src={previewPdfUrl}
+                  className="w-full h-full border-0"
+                  title="Template Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                </div>
+              )}
             </div>
-            <div className="flex justify-end p-4 border-t bg-gray-50">
-              <button onClick={() => setShowPreview(false)} className="btn-secondary">
+            <div className="flex justify-end p-4 border-t bg-gray-50 flex-shrink-0">
+              <button onClick={handleClosePreview} className="btn-secondary">
                 Close
               </button>
             </div>

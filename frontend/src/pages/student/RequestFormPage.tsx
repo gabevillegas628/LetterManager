@@ -459,7 +459,7 @@ function AcademicInfoStep({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="label">Degree Type</label>
+          <label className="label">Degree Being Sought</label>
           <select
             value={formData.degreeType}
             onChange={(e) => onChange('degreeType', e.target.value)}
@@ -472,6 +472,7 @@ function AcademicInfoStep({
             <option value="BS">Bachelor&apos;s (BS)</option>
             <option value="Other">Other</option>
           </select>
+          <p className="text-xs text-gray-500 mt-1">The degree you are applying for</p>
         </div>
         <div>
           <label className="label">Course Taken with Professor</label>

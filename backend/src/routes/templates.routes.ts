@@ -2,6 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware.js';
 import * as templateService from '../services/template.service.js';
+import { generatePreviewPdf } from '../services/pdf.service.js';
 
 const router = Router();
 
@@ -37,6 +38,31 @@ router.get('/variables/list', (_req, res) => {
     success: true,
     data: templateService.SYSTEM_VARIABLES,
   });
+});
+
+// POST /api/templates/preview-pdf - Generate PDF preview from template content (must be before /:id)
+router.post('/preview-pdf', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { content } = req.body;
+    if (!content || typeof content !== 'string') {
+      res.status(400).json({ success: false, error: 'Content is required' });
+      return;
+    }
+
+    // Replace variables with sample data
+    const sampleVariables = templateService.getSampleVariables();
+    const interpolatedContent = templateService.interpolateTemplate(content, sampleVariables);
+
+    // Generate PDF buffer
+    const pdfBuffer = await generatePreviewPdf(interpolatedContent);
+
+    // Send as PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="preview.pdf"');
+    res.send(pdfBuffer);
+  } catch (error) {
+    next(error);
+  }
 });
 
 // GET /api/templates - List all templates
@@ -112,7 +138,7 @@ router.post('/:id/duplicate', async (req: AuthRequest, res: Response, next: Next
   }
 });
 
-// POST /api/templates/:id/preview - Preview with sample data
+// POST /api/templates/:id/preview - Preview with sample data (HTML)
 router.post('/:id/preview', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;

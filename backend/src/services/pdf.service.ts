@@ -385,3 +385,33 @@ export async function isPdfUpToDate(letterId: string): Promise<boolean> {
   // Check if letter was updated after PDF was generated
   return letter.pdfGeneratedAt >= letter.updatedAt;
 }
+
+// Generate a preview PDF from template content (returns buffer, doesn't save)
+export async function generatePreviewPdf(content: string): Promise<Buffer> {
+  // Get professor info for letterhead
+  const professor = await prisma.professor.findFirst();
+
+  const professorInfo = professor ? {
+    name: professor.name,
+    title: professor.title ?? undefined,
+    department: professor.department ?? undefined,
+    institution: professor.institution ?? undefined,
+    email: professor.email ?? undefined,
+    letterheadImage: professor.letterheadImage,
+    signatureImage: professor.signatureImage,
+  } : undefined;
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  try {
+    const page = await browser.newPage();
+    const html = buildPdfHtml(content, professorInfo, 11);
+    const { buffer } = await generatePdfBuffer(page, html);
+    return buffer;
+  } finally {
+    await browser.close();
+  }
+}

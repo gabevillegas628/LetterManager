@@ -105,12 +105,10 @@ export default function RequestDetailPage() {
   const handleGenerateLetter = async () => {
     if (!id || !selectedTemplateId) return
     try {
-      const letter = await generateLetter.mutateAsync({
+      await generateLetter.mutateAsync({
         requestId: id,
         templateId: selectedTemplateId,
       })
-      setLetterContent(letter.content)
-      setIsEditing(true)
       refetchLetters()
       refetchLettersWithDest()
     } catch {
@@ -121,12 +119,10 @@ export default function RequestDetailPage() {
   const handleGenerateAllLetters = async () => {
     if (!id || !selectedTemplateId) return
     try {
-      const result = await generateAllLetters.mutateAsync({
+      await generateAllLetters.mutateAsync({
         requestId: id,
         templateId: selectedTemplateId,
       })
-      setLetterContent(result.master.content)
-      setIsEditing(true)
       refetchLetters()
       refetchLettersWithDest()
     } catch {
