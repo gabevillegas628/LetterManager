@@ -466,10 +466,12 @@ function AcademicInfoStep({
             className="input"
           >
             <option value="">Select...</option>
+            <option value="MD">Doctor of Medicine (MD)</option>
             <option value="MS">Master&apos;s (MS)</option>
             <option value="PhD">Doctorate (PhD)</option>
             <option value="MBA">MBA</option>
             <option value="BS">Bachelor&apos;s (BS)</option>
+            <option value="Multiple">Multiple</option>
             <option value="Other">Other</option>
           </select>
           <p className="text-xs text-gray-500 mt-1">The degree you are applying for</p>
