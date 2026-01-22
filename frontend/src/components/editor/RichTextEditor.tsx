@@ -16,8 +16,11 @@ import {
   Heading2,
   Undo,
   Redo,
+  IndentIncrease,
+  IndentDecrease,
 } from 'lucide-react'
 import { useEffect, useImperativeHandle, forwardRef } from 'react'
+import { IndentExtension } from './IndentExtension'
 
 export interface RichTextEditorRef {
   insertContent: (content: string) => void
@@ -82,6 +85,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
         Placeholder.configure({
           placeholder,
         }),
+        IndentExtension,
       ],
       content,
       editable: !readOnly,
@@ -209,6 +213,21 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
             title="Align Right"
           >
             <AlignRight className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarDivider />
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().outdent().run()}
+            title="Decrease Indent (Shift+Tab)"
+          >
+            <IndentDecrease className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().indent().run()}
+            title="Increase Indent (Tab)"
+          >
+            <IndentIncrease className="h-4 w-4" />
           </ToolbarButton>
         </div>
       )}

@@ -131,7 +131,6 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
 
     .content p {
       margin: 0.75em 0;
-      text-indent: 0;
     }
 
     .content p:first-of-type {
