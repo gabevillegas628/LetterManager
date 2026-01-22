@@ -6,6 +6,30 @@ import { generatePdf, getPdfPath } from './pdf.service.js';
 import path from 'path';
 import fs from 'fs';
 
+// Helper to check if all destinations are SENT or CONFIRMED, and update request status
+async function checkAndUpdateRequestCompletion(requestId: string): Promise<void> {
+  const destinations = await prisma.submissionDestination.findMany({
+    where: { requestId },
+  });
+
+  // If there are no destinations, don't mark as completed
+  if (destinations.length === 0) {
+    return;
+  }
+
+  // Check if all destinations are either SENT or CONFIRMED
+  const allComplete = destinations.every(
+    (d) => d.status === 'SENT' || d.status === 'CONFIRMED'
+  );
+
+  if (allComplete) {
+    await prisma.letterRequest.update({
+      where: { id: requestId },
+      data: { status: 'COMPLETED' },
+    });
+  }
+}
+
 // Create transporter
 const transporter = nodemailer.createTransport({
   host: config.smtp.host,
@@ -139,6 +163,9 @@ ${professor?.institution || ''}</p>
         sentAt: new Date(),
       },
     });
+
+    // Check if all destinations are now complete
+    await checkAndUpdateRequestCompletion(destination.requestId);
   } catch (error) {
     // Update destination with failure
     await prisma.submissionDestination.update({
@@ -170,6 +197,9 @@ export async function markDestinationSent(destinationId: string): Promise<void> 
       sentAt: new Date(),
     },
   });
+
+  // Check if all destinations are now complete
+  await checkAndUpdateRequestCompletion(destination.requestId);
 }
 
 // Mark destination as confirmed
@@ -189,6 +219,9 @@ export async function markDestinationConfirmed(destinationId: string): Promise<v
       confirmedAt: new Date(),
     },
   });
+
+  // Check if all destinations are now complete
+  await checkAndUpdateRequestCompletion(destination.requestId);
 }
 
 // Reset destination status to pending
@@ -210,4 +243,16 @@ export async function resetDestinationStatus(destinationId: string): Promise<voi
       failureReason: null,
     },
   });
+
+  // If request was COMPLETED, revert to IN_PROGRESS since not all destinations are done
+  const request = await prisma.letterRequest.findUnique({
+    where: { id: destination.requestId },
+  });
+
+  if (request?.status === 'COMPLETED') {
+    await prisma.letterRequest.update({
+      where: { id: destination.requestId },
+      data: { status: 'IN_PROGRESS' },
+    });
+  }
 }

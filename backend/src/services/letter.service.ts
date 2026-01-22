@@ -253,11 +253,8 @@ export async function finalizeLetter(id: string) {
     },
   });
 
-  // Update request status to COMPLETED
-  await prisma.letterRequest.update({
-    where: { id: letter.requestId },
-    data: { status: 'COMPLETED' },
-  });
+  // Note: Request status stays IN_PROGRESS until all destinations are SENT/CONFIRMED
+  // The status will be updated to COMPLETED by the email service when appropriate
 
   return finalized;
 }
@@ -283,11 +280,8 @@ export async function unfinalizeLetter(id: string) {
     },
   });
 
-  // Update request status back to IN_PROGRESS
-  await prisma.letterRequest.update({
-    where: { id: letter.requestId },
-    data: { status: 'IN_PROGRESS' },
-  });
+  // Note: Request status is based on destination statuses, not letter finalization
+  // No status change needed here
 
   return unfinalized;
 }
