@@ -34,6 +34,7 @@ import {
   useDeleteAllLetters,
   useGeneratePdf,
   useDownloadPdf,
+  usePreviewPdf,
   useSendLetter,
   useMarkDestinationSent,
   useMarkDestinationConfirmed,
@@ -69,6 +70,9 @@ export default function RequestDetailPage() {
   const [letterContent, setLetterContent] = useState<string>('')
   const [isEditing, setIsEditing] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null)
+  const [previewTitle, setPreviewTitle] = useState('')
 
   const { data: request, isLoading, error } = useRequest(id)
   const { data: templates } = useTemplates({ activeOnly: true })
@@ -85,6 +89,7 @@ export default function RequestDetailPage() {
   const deleteAllLetters = useDeleteAllLetters()
   const generatePdf = useGeneratePdf()
   const downloadPdf = useDownloadPdf()
+  const previewPdf = usePreviewPdf()
   const sendLetter = useSendLetter()
   const markSent = useMarkDestinationSent()
   const markConfirmed = useMarkDestinationConfirmed()
@@ -229,6 +234,29 @@ export default function RequestDetailPage() {
     }
   }
 
+  const handlePreviewPdf = async (letterId: string, title: string) => {
+    try {
+      // Revoke old URL if exists
+      if (previewPdfUrl) {
+        URL.revokeObjectURL(previewPdfUrl)
+      }
+      const url = await previewPdf.mutateAsync(letterId)
+      setPreviewPdfUrl(url)
+      setPreviewTitle(title)
+      setShowPdfPreview(true)
+    } catch {
+      // Error handled by mutation
+    }
+  }
+
+  const handleClosePreview = () => {
+    setShowPdfPreview(false)
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl)
+      setPreviewPdfUrl(null)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -356,6 +384,7 @@ export default function RequestDetailPage() {
               onUnfinalize={handleUnfinalize}
               onGeneratePdf={handleGeneratePdf}
               onDownloadPdf={handleDownloadPdfForLetter}
+              onPreviewPdf={handlePreviewPdf}
               isGenerating={generateLetter.isPending}
               isGeneratingAll={generateAllLetters.isPending}
               isSyncing={syncMasterToDestinations.isPending}
@@ -364,6 +393,7 @@ export default function RequestDetailPage() {
               isFinalizing={finalizeLetter.isPending || unfinalizeLetter.isPending}
               isGeneratingPdf={generatePdf.isPending}
               isDownloadingPdf={downloadPdf.isPending}
+              isPreviewingPdf={previewPdf.isPending}
             />
           )}
           {activeTab === 'destinations' && (
@@ -380,6 +410,41 @@ export default function RequestDetailPage() {
           )}
         </div>
       </div>
+
+      {/* PDF Preview Modal */}
+      {showPdfPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
+              <h3 className="text-lg font-semibold">{previewTitle}</h3>
+              <button
+                onClick={handleClosePreview}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              {previewPdfUrl ? (
+                <iframe
+                  src={previewPdfUrl}
+                  className="w-full h-full border-0"
+                  title="PDF Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end p-4 border-t bg-gray-50 flex-shrink-0">
+              <button onClick={handleClosePreview} className="btn-secondary">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -399,7 +464,18 @@ function StudentInfoTab({ request }: { request: NonNullable<ReturnType<typeof us
         <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h3>
         <dl>
           <InfoRow label="Full Name" value={request.studentName} />
-          <InfoRow label="Email" value={request.studentEmail} />
+          <div className="py-3 border-b border-gray-100">
+            <dt className="text-sm font-medium text-gray-500">Email</dt>
+            <dd className="mt-1 text-gray-900">
+              {request.studentEmail ? (
+                <a href={`mailto:${request.studentEmail}`} className="text-primary-600 hover:underline">
+                  {request.studentEmail}
+                </a>
+              ) : (
+                <span className="text-gray-400 italic">Not provided</span>
+              )}
+            </dd>
+          </div>
           <InfoRow label="Phone" value={request.studentPhone} />
         </dl>
       </div>
@@ -552,6 +628,7 @@ interface LetterTabProps {
   onUnfinalize: (letterId?: string) => void
   onGeneratePdf: (letterId?: string) => void
   onDownloadPdf: (letterId: string, filename: string) => void
+  onPreviewPdf: (letterId: string, title: string) => void
   isGenerating: boolean
   isGeneratingAll: boolean
   isSyncing: boolean
@@ -560,6 +637,7 @@ interface LetterTabProps {
   isFinalizing: boolean
   isGeneratingPdf: boolean
   isDownloadingPdf: boolean
+  isPreviewingPdf: boolean
 }
 
 function LetterTab({
@@ -583,6 +661,7 @@ function LetterTab({
   onUnfinalize,
   onGeneratePdf,
   onDownloadPdf,
+  onPreviewPdf,
   isGenerating,
   isGeneratingAll,
   isSyncing,
@@ -591,6 +670,7 @@ function LetterTab({
   isFinalizing,
   isGeneratingPdf,
   isDownloadingPdf,
+  isPreviewingPdf,
 }: LetterTabProps) {
   const [editingLetterId, setEditingLetterId] = useState<string | null>(null)
 
@@ -898,19 +978,34 @@ function LetterTab({
                               {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                             </button>
                             {destLetter.pdfPath && (
-                              <button
-                                onClick={() =>
-                                  onDownloadPdf(
-                                    destLetter.id,
-                                    `letter-${request.studentName || 'student'}-${dest.institutionName}.pdf`
-                                  )
-                                }
-                                disabled={isDownloadingPdf}
-                                className="btn-ghost text-sm px-3 py-1.5"
-                                title="Download PDF"
-                              >
-                                {isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                              </button>
+                              <>
+                                <button
+                                  onClick={() =>
+                                    onPreviewPdf(
+                                      destLetter.id,
+                                      `${dest.institutionName}${dest.programName ? ` - ${dest.programName}` : ''}`
+                                    )
+                                  }
+                                  disabled={isPreviewingPdf}
+                                  className="btn-ghost text-sm px-3 py-1.5"
+                                  title="Preview PDF"
+                                >
+                                  {isPreviewingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    onDownloadPdf(
+                                      destLetter.id,
+                                      `letter-${request.studentName || 'student'}-${dest.institutionName}.pdf`
+                                    )
+                                  }
+                                  disabled={isDownloadingPdf}
+                                  className="btn-ghost text-sm px-3 py-1.5"
+                                  title="Download PDF"
+                                >
+                                  {isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                                </button>
+                              </>
                             )}
                             <button
                               onClick={() => onUnfinalize(destLetter.id)}

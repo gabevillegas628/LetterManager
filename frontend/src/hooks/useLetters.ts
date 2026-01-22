@@ -171,6 +171,15 @@ export function useDownloadPdf() {
   })
 }
 
+export function usePreviewPdf() {
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const blob = await lettersApi.downloadPdf(id)
+      return URL.createObjectURL(blob)
+    },
+  })
+}
+
 export function usePdfStatus(id: string | undefined) {
   return useQuery({
     queryKey: ['letters', id, 'pdf-status'],
