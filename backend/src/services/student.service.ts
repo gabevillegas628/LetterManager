@@ -38,27 +38,46 @@ export const destinationSchema = z.object({
 
 export const studentService = {
   // Validate access code
-  async validateCode(code: string): Promise<{ valid: boolean; status?: RequestStatus }> {
+  async validateCode(code: string): Promise<{
+    valid: boolean;
+    status?: RequestStatus;
+    reason?: 'not_found' | 'in_progress' | 'completed' | 'archived';
+    professorEmail?: string;
+  }> {
     const request = await prisma.letterRequest.findUnique({
       where: { accessCode: code.toUpperCase() },
       select: { status: true },
     });
 
     if (!request) {
-      return { valid: false };
+      return { valid: false, reason: 'not_found' };
     }
 
     // Only allow access if PENDING or SUBMITTED (for editing)
     const allowedStatuses: RequestStatus[] = ['PENDING', 'SUBMITTED'];
     if (!allowedStatuses.includes(request.status)) {
-      return { valid: false };
+      // Get professor email for contact
+      const professor = await prisma.professor.findFirst({
+        select: { email: true },
+      });
+
+      const reason = request.status === 'IN_PROGRESS' ? 'in_progress'
+        : request.status === 'COMPLETED' ? 'completed'
+        : 'archived';
+
+      return { valid: false, status: request.status, reason, professorEmail: professor?.email };
     }
 
     return { valid: true, status: request.status };
   },
 
   // Get request by code (for student form)
-  async getRequestByCode(code: string) {
+  async getRequestByCode(code: string): Promise<{
+    success: boolean;
+    data?: Record<string, unknown>;
+    reason?: 'not_found' | 'in_progress' | 'completed' | 'archived';
+    professorEmail?: string;
+  }> {
     const request = await prisma.letterRequest.findUnique({
       where: { accessCode: code.toUpperCase() },
       include: {
@@ -90,37 +109,49 @@ export const studentService = {
     });
 
     if (!request) {
-      return null;
+      return { success: false, reason: 'not_found' };
     }
 
     // Only return if status allows student access
     const allowedStatuses: RequestStatus[] = ['PENDING', 'SUBMITTED'];
     if (!allowedStatuses.includes(request.status)) {
-      return null;
+      // Get professor email for contact
+      const professor = await prisma.professor.findFirst({
+        select: { email: true },
+      });
+
+      const reason = request.status === 'IN_PROGRESS' ? 'in_progress'
+        : request.status === 'COMPLETED' ? 'completed'
+        : 'archived';
+
+      return { success: false, reason, professorEmail: professor?.email };
     }
 
     // Return student-visible fields only
     return {
-      id: request.id,
-      accessCode: request.accessCode,
-      status: request.status,
-      studentName: request.studentName,
-      studentEmail: request.studentEmail,
-      studentPhone: request.studentPhone,
-      programApplying: request.programApplying,
-      institutionApplying: request.institutionApplying,
-      degreeType: request.degreeType,
-      courseTaken: request.courseTaken,
-      grade: request.grade,
-      semesterYear: request.semesterYear,
-      relationshipDescription: request.relationshipDescription,
-      achievements: request.achievements,
-      personalStatement: request.personalStatement,
-      additionalNotes: request.additionalNotes,
-      customFields: request.customFields,
-      deadline: request.deadline,
-      documents: request.documents,
-      destinations: request.destinations,
+      success: true,
+      data: {
+        id: request.id,
+        accessCode: request.accessCode,
+        status: request.status,
+        studentName: request.studentName,
+        studentEmail: request.studentEmail,
+        studentPhone: request.studentPhone,
+        programApplying: request.programApplying,
+        institutionApplying: request.institutionApplying,
+        degreeType: request.degreeType,
+        courseTaken: request.courseTaken,
+        grade: request.grade,
+        semesterYear: request.semesterYear,
+        relationshipDescription: request.relationshipDescription,
+        achievements: request.achievements,
+        personalStatement: request.personalStatement,
+        additionalNotes: request.additionalNotes,
+        customFields: request.customFields,
+        deadline: request.deadline,
+        documents: request.documents,
+        destinations: request.destinations,
+      },
     };
   },
 

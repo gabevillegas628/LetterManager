@@ -28,6 +28,7 @@ import {
   useUpdateDestination,
   useDeleteDestination,
   useSubmitRequest,
+  ValidationError,
   type StudentInfoInput,
   type DestinationInput,
   type Document,
@@ -42,11 +43,29 @@ const STEPS = [
   { id: 'review', label: 'Review', icon: CheckCircle },
 ]
 
+interface LockoutError {
+  reason: 'in_progress' | 'completed' | 'archived'
+  professorEmail?: string
+}
+
+// Helper to extract lockout error from axios error response
+function extractLockoutError(err: unknown): LockoutError | null {
+  const axiosError = err as { response?: { status?: number; data?: { reason?: string; professorEmail?: string } } }
+  if (axiosError.response?.status === 403 && axiosError.response?.data?.reason) {
+    const reason = axiosError.response.data.reason
+    if (reason === 'in_progress' || reason === 'completed' || reason === 'archived') {
+      return { reason, professorEmail: axiosError.response.data.professorEmail }
+    }
+  }
+  return null
+}
+
 export default function RequestFormPage() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(0)
   const [error, setError] = useState('')
+  const [lockoutError, setLockoutError] = useState<LockoutError | null>(null)
 
   const { data: request, isLoading, error: fetchError } = useStudentRequest(code)
   const updateInfo = useUpdateStudentInfo(code!)
@@ -120,14 +139,20 @@ export default function RequestFormPage() {
 
   const handleSaveAndContinue = async () => {
     setError('')
+    setLockoutError(null)
     try {
       if (currentStep < 2) {
         // Save student info on personal and academic steps
         await updateInfo.mutateAsync(formData)
       }
       setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1))
-    } catch {
-      setError('Failed to save. Please try again.')
+    } catch (err) {
+      const lockout = extractLockoutError(err)
+      if (lockout) {
+        setLockoutError(lockout)
+      } else {
+        setError('Failed to save. Please try again.')
+      }
     }
   }
 
@@ -223,13 +248,57 @@ export default function RequestFormPage() {
   }
 
   if (fetchError || !request) {
+    // Check if this is a ValidationError with details about why access is denied
+    const validationError = fetchError instanceof ValidationError ? fetchError : null
+    const showContactInfo = validationError?.reason && validationError.reason !== 'not_found'
+
     return (
       <div className="card max-w-md mx-auto">
-        <div className="card-body text-center">
-          <p className="text-red-600 mb-4">
-            This request was not found or is no longer accepting submissions.
-          </p>
-          <button onClick={() => navigate('/student')} className="btn-primary">
+        <div className="card-body">
+          {showContactInfo ? (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm p-4 rounded-md">
+              {validationError.reason === 'in_progress' && (
+                <>
+                  <p className="font-medium">Your letter is being written</p>
+                  <p className="mt-1">
+                    Your professor is currently working on your recommendation letter, so the form can no longer be edited.
+                  </p>
+                </>
+              )}
+              {validationError.reason === 'completed' && (
+                <>
+                  <p className="font-medium">Your letter has been completed</p>
+                  <p className="mt-1">
+                    Your recommendation letter has already been finalized and sent.
+                  </p>
+                </>
+              )}
+              {validationError.reason === 'archived' && (
+                <>
+                  <p className="font-medium">This request is no longer active</p>
+                  <p className="mt-1">
+                    This recommendation request has been archived.
+                  </p>
+                </>
+              )}
+              {validationError.professorEmail && (
+                <p className="mt-3">
+                  If you need to make changes, please contact your professor at{' '}
+                  <a
+                    href={`mailto:${validationError.professorEmail}?subject=Letter Request Change - ${code}`}
+                    className="text-amber-900 underline font-medium"
+                  >
+                    {validationError.professorEmail}
+                  </a>
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-red-600 text-center mb-4">
+              This request was not found or is no longer accepting submissions.
+            </p>
+          )}
+          <button onClick={() => navigate('/student')} className="btn-primary w-full mt-4">
             Enter a different code
           </button>
         </div>
@@ -294,6 +363,47 @@ export default function RequestFormPage() {
               You can add new destinations or update your information until your professor begins working on your letter.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Lockout Error Message */}
+      {lockoutError && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm p-4 rounded-md mb-4">
+          {lockoutError.reason === 'in_progress' && (
+            <>
+              <p className="font-medium">Your letter is now being written</p>
+              <p className="mt-1">
+                Your professor has started working on your recommendation letter, so the form can no longer be edited.
+              </p>
+            </>
+          )}
+          {lockoutError.reason === 'completed' && (
+            <>
+              <p className="font-medium">Your letter has been completed</p>
+              <p className="mt-1">
+                Your recommendation letter has been finalized and sent.
+              </p>
+            </>
+          )}
+          {lockoutError.reason === 'archived' && (
+            <>
+              <p className="font-medium">This request is no longer active</p>
+              <p className="mt-1">
+                This recommendation request has been archived.
+              </p>
+            </>
+          )}
+          {lockoutError.professorEmail && (
+            <p className="mt-3">
+              If you need to make changes, please contact your professor at{' '}
+              <a
+                href={`mailto:${lockoutError.professorEmail}?subject=Letter Request Change - ${code}`}
+                className="text-amber-900 underline font-medium"
+              >
+                {lockoutError.professorEmail}
+              </a>
+            </p>
+          )}
         </div>
       )}
 

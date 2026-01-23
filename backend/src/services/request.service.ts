@@ -47,10 +47,17 @@ export async function listRequests(options?: ListRequestsOptions) {
     prisma.letterRequest.findMany({
       where,
       include: {
+        destinations: {
+          select: {
+            id: true,
+            institutionName: true,
+            deadline: true,
+          },
+          orderBy: { deadline: 'asc' },
+        },
         _count: {
           select: {
             documents: true,
-            destinations: true,
             letters: true,
           },
         },

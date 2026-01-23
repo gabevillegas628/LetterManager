@@ -76,12 +76,37 @@ export interface DestinationInput {
   deadline?: string
 }
 
+// Custom error class for validation errors with details
+export class ValidationError extends Error {
+  reason?: 'not_found' | 'in_progress' | 'completed' | 'archived'
+  professorEmail?: string
+
+  constructor(message: string, reason?: string, professorEmail?: string) {
+    super(message)
+    this.reason = reason as ValidationError['reason']
+    this.professorEmail = professorEmail
+  }
+}
+
 // Validate access code
 export function useValidateCode() {
   return useMutation({
     mutationFn: async (code: string) => {
-      const response = await api.post('/student/validate-code', { code })
-      return response.data.data as { valid: boolean; status: string }
+      try {
+        const response = await api.post('/student/validate-code', { code })
+        return response.data.data as { valid: boolean; status: string }
+      } catch (err: unknown) {
+        // Extract error details from axios error response
+        const axiosError = err as { response?: { data?: { reason?: string; professorEmail?: string } } }
+        if (axiosError.response?.data?.reason) {
+          throw new ValidationError(
+            'Invalid access code',
+            axiosError.response.data.reason,
+            axiosError.response.data.professorEmail
+          )
+        }
+        throw err
+      }
     },
   })
 }
@@ -92,8 +117,21 @@ export function useStudentRequest(code: string | undefined) {
     queryKey: ['studentRequest', code],
     queryFn: async () => {
       if (!code) throw new Error('Code is required')
-      const response = await api.get(`/student/${code}`)
-      return response.data.data as StudentRequest
+      try {
+        const response = await api.get(`/student/${code}`)
+        return response.data.data as StudentRequest
+      } catch (err: unknown) {
+        // Extract error details from axios error response
+        const axiosError = err as { response?: { data?: { reason?: string; professorEmail?: string } } }
+        if (axiosError.response?.data?.reason) {
+          throw new ValidationError(
+            'Request not accessible',
+            axiosError.response.data.reason,
+            axiosError.response.data.professorEmail
+          )
+        }
+        throw err
+      }
     },
     enabled: !!code,
     retry: false,

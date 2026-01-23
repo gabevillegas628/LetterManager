@@ -25,9 +25,11 @@ router.post('/validate-code', codeLimiter, async (req: Request, res: Response, n
     const result = await studentService.validateCode(parsed.data.code);
 
     if (!result.valid) {
-      res.status(404).json({
+      res.status(result.reason === 'not_found' ? 404 : 403).json({
         success: false,
         error: 'Invalid or expired access code',
+        reason: result.reason,
+        professorEmail: result.professorEmail,
       });
       return;
     }
@@ -48,19 +50,22 @@ router.post('/validate-code', codeLimiter, async (req: Request, res: Response, n
 router.get('/:code', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const code = req.params.code as string;
-    const request = await studentService.getRequestByCode(code);
+    const result = await studentService.getRequestByCode(code);
 
-    if (!request) {
-      res.status(404).json({
+    if (!result.success) {
+      const statusCode = result.reason === 'not_found' ? 404 : 403;
+      res.status(statusCode).json({
         success: false,
         error: 'Request not found or no longer accepting submissions',
+        reason: result.reason,
+        professorEmail: result.professorEmail,
       });
       return;
     }
 
     res.json({
       success: true,
-      data: request,
+      data: result.data,
     });
   } catch (error) {
     next(error);
@@ -69,8 +74,8 @@ router.get('/:code', async (req: Request, res: Response, next: NextFunction) => 
 
 // PUT /api/student/:code - Update student information
 router.put('/:code', async (req: Request, res: Response, next: NextFunction) => {
+  const code = req.params.code as string;
   try {
-    const code = req.params.code as string;
     const parsed = studentInfoSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -95,7 +100,14 @@ router.put('/:code', async (req: Request, res: Response, next: NextFunction) => 
         return;
       }
       if (error.message === 'Request cannot be modified') {
-        res.status(403).json({ success: false, error: error.message });
+        // Get details about why it can't be modified
+        const result = await studentService.validateCode(code);
+        res.status(403).json({
+          success: false,
+          error: error.message,
+          reason: result.reason,
+          professorEmail: result.professorEmail,
+        });
         return;
       }
     }
