@@ -148,7 +148,7 @@ export default function LoginPage() {
               <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-600 rounded-xl mb-4 shadow-lg shadow-blue-600/30">
                 <FileText className="h-7 w-7 text-white" />
               </div>
-              <h1 className="text-3xl font-bold text-gray-900">Letter Writer</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Recommate</h1>
               <p className="text-gray-500 mt-2">Welcome back! Please select your role to continue.</p>
             </div>
 

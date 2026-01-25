@@ -16,7 +16,7 @@ export default function StudentLayout() {
       </main>
 
       <footer className="text-center py-6 text-sm text-gray-500">
-        <p>Letter Writer - Recommendation Letter Management</p>
+        <p>Recommate</p>
       </footer>
     </div>
   )

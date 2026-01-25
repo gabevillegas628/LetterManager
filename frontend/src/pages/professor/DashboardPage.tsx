@@ -138,7 +138,7 @@ export default function DashboardPage() {
         <div className="card bg-gradient-to-br from-primary-50 to-primary-100 border-primary-200">
           <div className="card-body text-center py-8">
             <h3 className="text-lg font-semibold text-primary-900 mb-2">
-              Welcome to Letter Writer!
+              Welcome to Recommate!
             </h3>
             <p className="text-primary-700 mb-6 max-w-md mx-auto">
               Get started by creating a letter template, then create requests for students

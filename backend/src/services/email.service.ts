@@ -108,7 +108,7 @@ export async function sendLetter(input: SendLetterInput): Promise<void> {
 
   // Get professor info for sender
   const professor = await prisma.professor.findFirst();
-  const fromName = professor?.name || 'Letter Writer';
+  const fromName = professor?.name || 'Recommate';
   const fromEmail = config.smtp.user;
 
   // Build email

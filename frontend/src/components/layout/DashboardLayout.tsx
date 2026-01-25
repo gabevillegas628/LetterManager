@@ -47,7 +47,7 @@ export default function DashboardLayout() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-            <h1 className="text-xl font-semibold text-gray-900">Letter Writer</h1>
+            <h1 className="text-xl font-semibold text-gray-900">Recommate</h1>
             <button
               className="lg:hidden p-1 rounded-md hover:bg-gray-100"
               onClick={() => setSidebarOpen(false)}
@@ -115,7 +115,7 @@ export default function DashboardLayout() {
             >
               <Menu className="h-6 w-6" />
             </button>
-            <h1 className="text-lg font-semibold">Letter Writer</h1>
+            <h1 className="text-lg font-semibold">Recommate</h1>
           </div>
         </header>
 
