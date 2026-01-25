@@ -537,16 +537,6 @@ function PersonalInfoStep({
             required
           />
         </div>
-        <div>
-          <label className="label">Phone</label>
-          <input
-            type="tel"
-            value={formData.studentPhone}
-            onChange={(e) => onChange('studentPhone', e.target.value)}
-            className="input"
-            placeholder="(555) 123-4567"
-          />
-        </div>
       </div>
     </div>
   )
@@ -1130,8 +1120,6 @@ function ReviewStep({
           <dd>{formData.studentName || '-'}</dd>
           <dt className="text-gray-500">Email:</dt>
           <dd>{formData.studentEmail || '-'}</dd>
-          <dt className="text-gray-500">Phone:</dt>
-          <dd>{formData.studentPhone || '-'}</dd>
         </dl>
       </div>
 

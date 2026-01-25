@@ -262,7 +262,7 @@ export const studentService = {
       throw new Error('Request not found');
     }
 
-    return prisma.submissionDestination.create({
+    const destination = await prisma.submissionDestination.create({
       data: {
         requestId: request.id,
         institutionName: data.institutionName,
@@ -276,6 +276,21 @@ export const studentService = {
         status: 'PENDING' as SubmissionStatus,
       },
     });
+
+    // Auto-submit if request is PENDING and has all required info
+    // This handles the case where a student adds destinations after initially
+    // trying to submit without any
+    if (request.status === 'PENDING' && request.studentName && request.studentEmail) {
+      await prisma.letterRequest.update({
+        where: { id: request.id },
+        data: {
+          status: 'SUBMITTED',
+          studentSubmittedAt: new Date(),
+        },
+      });
+    }
+
+    return destination;
   },
 
   // Delete destination
