@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { GraduationCap, Briefcase, ArrowRight } from 'lucide-react'
+import { GraduationCap, Briefcase, ArrowRight, Clock } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { AxiosError } from 'axios'
 
 export default function LoginPage() {
   const [mode, setMode] = useState<'select' | 'professor'>('select')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [isRateLimited, setIsRateLimited] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const { login, isAuthenticated } = useAuth()
@@ -23,13 +25,20 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setIsRateLimited(false)
     setIsLoading(true)
 
     try {
       await login(email, password)
       navigate('/')
-    } catch {
-      setError('Invalid email or password')
+    } catch (err) {
+      const axiosError = err as AxiosError<{ error: string }>
+      if (axiosError.response?.status === 429) {
+        setIsRateLimited(true)
+        setError(axiosError.response.data?.error || 'Too many login attempts. Please try again later.')
+      } else {
+        setError('Invalid email or password')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -106,8 +115,13 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-md">
-                {error}
+              <div className={`text-sm p-3 rounded-md flex items-start gap-2 ${
+                isRateLimited
+                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                  : 'bg-red-50 text-red-600'
+              }`}>
+                {isRateLimited && <Clock className="h-4 w-4 mt-0.5 flex-shrink-0" />}
+                <span>{error}</span>
               </div>
             )}
 
