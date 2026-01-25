@@ -13,9 +13,10 @@ import {
   List,
   ChevronUp,
   ChevronDown,
+  Trash2,
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { useRequests, useCreateRequest } from '../../hooks/useRequests'
+import { useRequests, useCreateRequest, useDeleteRequest } from '../../hooks/useRequests'
 import type { LetterRequest, RequestStatus } from 'shared'
 
 type ViewMode = 'cards' | 'table'
@@ -44,7 +45,7 @@ const STATUS_CLASSES: Record<RequestStatus, string> = {
   ARCHIVED: 'badge-archived',
 }
 
-function RequestCard({ request }: { request: LetterRequest }) {
+function RequestCard({ request, onDelete }: { request: LetterRequest; onDelete: (request: LetterRequest) => void }) {
   const [copied, setCopied] = useState(false)
 
   const handleCopyCode = () => {
@@ -132,6 +133,13 @@ function RequestCard({ request }: { request: LetterRequest }) {
                 Send to student
               </a>
             )}
+            <button
+              onClick={() => onDelete(request)}
+              className="text-sm text-gray-400 hover:text-red-600"
+              title="Delete request"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
             <Link
               to={`/requests/${request.id}`}
               className="text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -185,11 +193,13 @@ function RequestTable({
   sortField,
   sortDirection,
   onSort,
+  onDelete,
 }: {
   requests: LetterRequest[]
   sortField: SortField
   sortDirection: SortDirection
   onSort: (field: SortField) => void
+  onDelete: (request: LetterRequest) => void
 }) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -238,6 +248,9 @@ function RequestTable({
               />
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Applying To
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Notes
               </th>
               <SortHeader
                 label="Created"
@@ -321,6 +334,15 @@ function RequestTable({
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {request.professorNotes ? (
+                      <span className="truncate max-w-[200px] block italic" title={request.professorNotes}>
+                        {request.professorNotes}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                     {format(new Date(request.createdAt), 'MMM d, yyyy')}
                   </td>
@@ -337,6 +359,13 @@ function RequestTable({
                           <Mail className="h-4 w-4" />
                         </a>
                       )}
+                      <button
+                        onClick={() => onDelete(request)}
+                        className="text-gray-400 hover:text-red-600"
+                        title="Delete request"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                       <Link
                         to={`/requests/${request.id}`}
                         className="text-primary-600 hover:text-primary-700 font-medium"
@@ -350,6 +379,77 @@ function RequestTable({
             })}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+function DeleteConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  request,
+  isDeleting,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  onConfirm: () => void
+  request: LetterRequest | null
+  isDeleting: boolean
+}) {
+  if (!isOpen || !request) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h3 className="text-lg font-semibold text-red-600">Delete Request</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            disabled={isDeleting}
+          >
+            &times;
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          <p className="text-gray-700">
+            Are you sure you want to delete the request for{' '}
+            <strong>{request.studentName || 'this student'}</strong>?
+          </p>
+          <p className="text-sm text-gray-500">
+            This will permanently delete:
+          </p>
+          <ul className="text-sm text-gray-500 list-disc list-inside space-y-1">
+            <li>The request and all student-submitted information</li>
+            <li>All uploaded documents</li>
+            <li>All generated letters</li>
+            <li>All submission destinations</li>
+          </ul>
+          <p className="text-sm font-medium text-red-600">
+            This action cannot be undone.
+          </p>
+        </div>
+
+        <div className="flex justify-end gap-3 p-4 border-t bg-gray-50">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn-secondary"
+            disabled={isDeleting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="btn-primary bg-red-600 hover:bg-red-700"
+            disabled={isDeleting}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete Request'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -443,6 +543,8 @@ function CreateRequestModal({
 
 export default function RequestsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [requestToDelete, setRequestToDelete] = useState<LetterRequest | null>(null)
   const [statusFilter, setStatusFilter] = useState<RequestStatus | ''>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
@@ -454,6 +556,7 @@ export default function RequestsPage() {
     search: searchQuery || undefined,
   })
   const createRequest = useCreateRequest()
+  const deleteRequest = useDeleteRequest()
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -510,6 +613,22 @@ export default function RequestsPage() {
       setShowCreateModal(false)
     } catch (error) {
       console.error('Failed to create request:', error)
+    }
+  }
+
+  const handleDeleteClick = (request: LetterRequest) => {
+    setRequestToDelete(request)
+    setShowDeleteModal(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!requestToDelete) return
+    try {
+      await deleteRequest.mutateAsync(requestToDelete.id)
+      setShowDeleteModal(false)
+      setRequestToDelete(null)
+    } catch (error) {
+      console.error('Failed to delete request:', error)
     }
   }
 
@@ -606,7 +725,7 @@ export default function RequestsPage() {
         viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sortedRequests.map((request) => (
-              <RequestCard key={request.id} request={request} />
+              <RequestCard key={request.id} request={request} onDelete={handleDeleteClick} />
             ))}
           </div>
         ) : (
@@ -615,6 +734,7 @@ export default function RequestsPage() {
             sortField={sortField}
             sortDirection={sortDirection}
             onSort={handleSort}
+            onDelete={handleDeleteClick}
           />
         )
       ) : (
@@ -644,6 +764,17 @@ export default function RequestsPage() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onCreate={handleCreate}
+      />
+
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false)
+          setRequestToDelete(null)
+        }}
+        onConfirm={handleConfirmDelete}
+        request={requestToDelete}
+        isDeleting={deleteRequest.isPending}
       />
     </div>
   )
