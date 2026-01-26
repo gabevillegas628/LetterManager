@@ -132,7 +132,7 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
     }
 
     .letterhead-logo img {
-      max-width: 160px;
+      max-width: 210px;
       object-fit: contain;
       /* height set dynamically via inline style to match header info */
     }
