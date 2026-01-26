@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   Plus,
   FileText,
@@ -30,8 +30,8 @@ function getEarliestDestinationDeadline(request: LetterRequest) {
 }
 
 const STATUS_LABELS: Record<RequestStatus, string> = {
-  PENDING: 'Pending',
-  SUBMITTED: 'Submitted',
+  PENDING: 'Awaiting Student',
+  SUBMITTED: 'Ready to Write',
   IN_PROGRESS: 'In Progress',
   COMPLETED: 'Completed',
   ARCHIVED: 'Archived',
@@ -542,14 +542,25 @@ function CreateRequestModal({
 }
 
 export default function RequestsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [requestToDelete, setRequestToDelete] = useState<LetterRequest | null>(null)
-  const [statusFilter, setStatusFilter] = useState<RequestStatus | ''>('')
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [sortField, setSortField] = useState<SortField>('createdAt')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
+  // Read status filter from URL params
+  const statusFilter = (searchParams.get('status') as RequestStatus | null) || ''
+
+  const setStatusFilter = (status: RequestStatus | '') => {
+    if (status) {
+      setSearchParams({ status })
+    } else {
+      setSearchParams({})
+    }
+  }
 
   const { data, isLoading, error } = useRequests({
     status: statusFilter || undefined,
@@ -685,8 +696,8 @@ export default function RequestsPage() {
                 className="input pl-10 pr-8 appearance-none"
               >
                 <option value="">All statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="SUBMITTED">Submitted</option>
+                <option value="PENDING">Awaiting Student</option>
+                <option value="SUBMITTED">Ready to Write</option>
                 <option value="IN_PROGRESS">In Progress</option>
                 <option value="COMPLETED">Completed</option>
                 <option value="ARCHIVED">Archived</option>

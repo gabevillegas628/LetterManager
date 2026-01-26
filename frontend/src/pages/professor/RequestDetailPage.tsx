@@ -56,6 +56,14 @@ const statusColors: Record<string, string> = {
   ARCHIVED: 'bg-gray-100 text-gray-800',
 }
 
+const statusLabels: Record<string, string> = {
+  PENDING: 'Awaiting Student',
+  SUBMITTED: 'Ready to Write',
+  IN_PROGRESS: 'In Progress',
+  COMPLETED: 'Completed',
+  ARCHIVED: 'Archived',
+}
+
 const submissionStatusColors: Record<string, string> = {
   PENDING: 'text-gray-500',
   SENT: 'text-blue-600',
@@ -300,7 +308,7 @@ export default function RequestDetailPage() {
               {request.studentName || 'Pending Student'}
             </h1>
             <span className={`px-2.5 py-0.5 rounded-full text-sm font-medium ${statusColors[request.status]}`}>
-              {request.status.replace('_', ' ')}
+              {statusLabels[request.status] || request.status}
             </span>
           </div>
           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
