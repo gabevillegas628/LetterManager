@@ -68,6 +68,12 @@ const updateProfileSchema = z.object({
   title: z.string().optional(),
   department: z.string().optional(),
   institution: z.string().optional(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  headerConfig: z.object({
+    showName: z.boolean(),
+    items: z.array(z.string()),
+  }).nullable().optional(),
 });
 
 const changePasswordSchema = z.object({

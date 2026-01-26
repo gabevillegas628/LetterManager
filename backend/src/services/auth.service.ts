@@ -152,12 +152,19 @@ export async function updateProfile(
     institution?: string;
     address?: string;
     phone?: string;
-    headerConfig?: { showName: boolean; items: string[] };
+    headerConfig?: { showName: boolean; items: string[] } | null;
   }
 ) {
+  // Convert null headerConfig to undefined so Prisma doesn't try to update it
+  const { headerConfig, ...rest } = data;
+  const updateData = {
+    ...rest,
+    ...(headerConfig !== null && headerConfig !== undefined ? { headerConfig } : {}),
+  };
+
   const professor = await prisma.professor.update({
     where: { id: professorId },
-    data,
+    data: updateData,
   });
 
   return excludePassword(professor);
