@@ -11,6 +11,7 @@ export interface ProfessorResponse {
   id: string;
   email: string;
   name: string;
+  isAdmin: boolean;
   title: string | null;
   department: string | null;
   institution: string | null;
@@ -27,6 +28,7 @@ function excludePassword(professor: {
   id: string;
   email: string;
   name: string;
+  isAdmin: boolean;
   title: string | null;
   department: string | null;
   institution: string | null;
@@ -117,6 +119,7 @@ export async function setup(data: {
       email: data.email.toLowerCase(),
       passwordHash,
       name: data.name,
+      isAdmin: true, // First professor is always admin
       title: data.title,
       department: data.department,
       institution: data.institution,
@@ -338,4 +341,116 @@ export async function getImagePath(
   }
 
   return type === 'letterhead' ? professor.letterheadImage : professor.signatureImage;
+}
+
+// Admin functions
+
+export async function isAdmin(professorId: string): Promise<boolean> {
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+    select: { isAdmin: true },
+  });
+  return professor?.isAdmin ?? false;
+}
+
+export async function verifyAdmin(professorId: string): Promise<void> {
+  const admin = await isAdmin(professorId);
+  if (!admin) {
+    throw new AppError('Admin access required', 403);
+  }
+}
+
+export async function listProfessors(adminId: string): Promise<ProfessorResponse[]> {
+  await verifyAdmin(adminId);
+
+  const professors = await prisma.professor.findMany({
+    orderBy: { createdAt: 'asc' },
+  });
+
+  return professors.map(excludePassword);
+}
+
+export async function createProfessor(
+  adminId: string,
+  data: {
+    email: string;
+    password: string;
+    name: string;
+    title?: string;
+    department?: string;
+    institution?: string;
+  }
+): Promise<ProfessorResponse> {
+  await verifyAdmin(adminId);
+
+  // Check if email already exists
+  const existing = await prisma.professor.findUnique({
+    where: { email: data.email.toLowerCase() },
+  });
+
+  if (existing) {
+    throw new AppError('Email already registered', 400);
+  }
+
+  // Validate password strength
+  if (data.password.length < 8) {
+    throw new AppError('Password must be at least 8 characters', 400);
+  }
+
+  const passwordHash = await hashPassword(data.password);
+
+  const professor = await prisma.professor.create({
+    data: {
+      email: data.email.toLowerCase(),
+      passwordHash,
+      name: data.name,
+      isAdmin: false, // New professors are not admins
+      title: data.title,
+      department: data.department,
+      institution: data.institution,
+    },
+  });
+
+  return excludePassword(professor);
+}
+
+export async function deleteProfessor(
+  adminId: string,
+  professorId: string
+): Promise<void> {
+  await verifyAdmin(adminId);
+
+  // Cannot delete yourself
+  if (adminId === professorId) {
+    throw new AppError('Cannot delete your own account', 400);
+  }
+
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+  });
+
+  if (!professor) {
+    throw new AppError('Professor not found', 404);
+  }
+
+  // Delete professor's images if they exist
+  if (professor.letterheadImage && fs.existsSync(professor.letterheadImage)) {
+    try {
+      fs.unlinkSync(professor.letterheadImage);
+    } catch {
+      // Ignore deletion errors
+    }
+  }
+  if (professor.signatureImage && fs.existsSync(professor.signatureImage)) {
+    try {
+      fs.unlinkSync(professor.signatureImage);
+    } catch {
+      // Ignore deletion errors
+    }
+  }
+
+  // Delete professor (cascades to requests, templates, etc.)
+  await prisma.professor.delete({
+    where: { id: professorId },
+  });
 }

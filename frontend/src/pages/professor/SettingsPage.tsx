@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react'
-import { Upload, Trash2, Image, FileSignature, Loader2, Check } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Upload, Trash2, Image, FileSignature, Loader2, Check, UserPlus, Users, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import HeaderLayoutEditor from '../../components/HeaderLayoutEditor'
-import type { HeaderConfig } from 'shared'
+import type { HeaderConfig, Professor } from 'shared'
 
 export default function SettingsPage() {
   const {
@@ -12,6 +12,9 @@ export default function SettingsPage() {
     deleteLetterhead,
     uploadSignature,
     deleteSignature,
+    listProfessors,
+    createProfessor,
+    deleteProfessor,
   } = useAuth()
 
   const [formData, setFormData] = useState({
@@ -33,6 +36,71 @@ export default function SettingsPage() {
 
   const letterheadInputRef = useRef<HTMLInputElement>(null)
   const signatureInputRef = useRef<HTMLInputElement>(null)
+
+  // Admin state
+  const [professors, setProfessors] = useState<Professor[]>([])
+  const [isLoadingProfessors, setIsLoadingProfessors] = useState(false)
+  const [isAddingProfessor, setIsAddingProfessor] = useState(false)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newProfessor, setNewProfessor] = useState({
+    email: '',
+    password: '',
+    name: '',
+    title: '',
+    department: '',
+    institution: '',
+  })
+  const [adminError, setAdminError] = useState<string | null>(null)
+
+  // Load professors list for admin
+  useEffect(() => {
+    if (professor?.isAdmin) {
+      loadProfessors()
+    }
+  }, [professor?.isAdmin])
+
+  const loadProfessors = async () => {
+    setIsLoadingProfessors(true)
+    try {
+      const profs = await listProfessors()
+      setProfessors(profs)
+    } catch {
+      setAdminError('Failed to load professors')
+    } finally {
+      setIsLoadingProfessors(false)
+    }
+  }
+
+  const handleAddProfessor = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsAddingProfessor(true)
+    setAdminError(null)
+    try {
+      await createProfessor(newProfessor)
+      await loadProfessors()
+      setShowAddForm(false)
+      setNewProfessor({ email: '', password: '', name: '', title: '', department: '', institution: '' })
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } }
+      setAdminError(error.response?.data?.error || 'Failed to add professor')
+    } finally {
+      setIsAddingProfessor(false)
+    }
+  }
+
+  const handleDeleteProfessor = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete ${name}? This will delete all their requests, templates, and letters.`)) {
+      return
+    }
+    setAdminError(null)
+    try {
+      await deleteProfessor(id)
+      await loadProfessors()
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } }
+      setAdminError(error.response?.data?.error || 'Failed to delete professor')
+    }
+  }
 
   const handleSaveProfile = async () => {
     setIsSaving(true)
@@ -403,16 +471,180 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h2 className="text-lg font-semibold">Email Settings</h2>
+      {/* Admin Section - Only visible to admins */}
+      {professor?.isAdmin && (
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-gray-500" />
+                <h2 className="text-lg font-semibold">Manage Professors</h2>
+              </div>
+              {!showAddForm && (
+                <button
+                  onClick={() => setShowAddForm(true)}
+                  className="btn-primary text-sm"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Professor
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              As an admin, you can add or remove professors from the platform
+            </p>
+          </div>
+          <div className="card-body">
+            {adminError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                {adminError}
+              </div>
+            )}
+
+            {/* Add Professor Form */}
+            {showAddForm && (
+              <form onSubmit={handleAddProfessor} className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-medium mb-4">Add New Professor</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="label">Email *</label>
+                    <input
+                      type="email"
+                      className="input"
+                      required
+                      value={newProfessor.email}
+                      onChange={(e) => setNewProfessor({ ...newProfessor, email: e.target.value })}
+                      placeholder="professor@university.edu"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Password *</label>
+                    <input
+                      type="password"
+                      className="input"
+                      required
+                      minLength={8}
+                      value={newProfessor.password}
+                      onChange={(e) => setNewProfessor({ ...newProfessor, password: e.target.value })}
+                      placeholder="Min 8 characters"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Name *</label>
+                    <input
+                      type="text"
+                      className="input"
+                      required
+                      value={newProfessor.name}
+                      onChange={(e) => setNewProfessor({ ...newProfessor, name: e.target.value })}
+                      placeholder="Dr. Jane Smith"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Title</label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={newProfessor.title}
+                      onChange={(e) => setNewProfessor({ ...newProfessor, title: e.target.value })}
+                      placeholder="Associate Professor"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Department</label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={newProfessor.department}
+                      onChange={(e) => setNewProfessor({ ...newProfessor, department: e.target.value })}
+                      placeholder="Computer Science"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Institution</label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={newProfessor.institution}
+                      onChange={(e) => setNewProfessor({ ...newProfessor, institution: e.target.value })}
+                      placeholder="University Name"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button
+                    type="submit"
+                    disabled={isAddingProfessor}
+                    className="btn-primary"
+                  >
+                    {isAddingProfessor ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Adding...
+                      </>
+                    ) : (
+                      'Add Professor'
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddForm(false)
+                      setNewProfessor({ email: '', password: '', name: '', title: '', department: '', institution: '' })
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Professors List */}
+            {isLoadingProfessors ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              </div>
+            ) : (
+              <div className="divide-y">
+                {professors.map((prof) => (
+                  <div key={prof.id} className="py-3 flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{prof.name}</span>
+                        {prof.isAdmin && (
+                          <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded-full">
+                            Admin
+                          </span>
+                        )}
+                        {prof.id === professor?.id && (
+                          <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
+                            You
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {prof.email}
+                        {prof.title && ` · ${prof.title}`}
+                      </div>
+                    </div>
+                    {prof.id !== professor?.id && (
+                      <button
+                        onClick={() => handleDeleteProfessor(prof.id, prof.name)}
+                        className="btn-ghost text-red-600 hover:bg-red-50 p-2"
+                        title="Delete professor"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="card-body">
-          <p className="text-gray-500">
-            Email configuration - to be implemented
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

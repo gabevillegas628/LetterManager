@@ -53,8 +53,8 @@ router.post('/preview-pdf', async (req: AuthRequest, res: Response, next: NextFu
     const sampleVariables = templateService.getSampleVariables();
     const interpolatedContent = templateService.interpolateTemplate(content, sampleVariables);
 
-    // Generate PDF buffer
-    const pdfBuffer = await generatePreviewPdf(interpolatedContent);
+    // Generate PDF buffer with professor's letterhead
+    const pdfBuffer = await generatePreviewPdf(req.professorId!, interpolatedContent);
 
     // Send as PDF
     res.setHeader('Content-Type', 'application/pdf');
@@ -71,7 +71,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     const activeOnly = req.query.activeOnly === 'true';
     const category = req.query.category as string | undefined;
 
-    const templates = await templateService.listTemplates({
+    const templates = await templateService.listTemplates(req.professorId!, {
       activeOnly,
       category,
     });
@@ -86,7 +86,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const template = await templateService.getTemplate(id);
+    const template = await templateService.getTemplate(req.professorId!, id);
     res.json({ success: true, data: template });
   } catch (error) {
     next(error);
@@ -97,7 +97,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = createTemplateSchema.parse(req.body);
-    const template = await templateService.createTemplate(data);
+    const template = await templateService.createTemplate(req.professorId!, data);
     res.status(201).json({ success: true, data: template });
   } catch (error) {
     next(error);
@@ -109,7 +109,7 @@ router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
   try {
     const id = req.params.id as string;
     const data = updateTemplateSchema.parse(req.body);
-    const template = await templateService.updateTemplate(id, data);
+    const template = await templateService.updateTemplate(req.professorId!, id, data);
     res.json({ success: true, data: template });
   } catch (error) {
     next(error);
@@ -120,7 +120,7 @@ router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const result = await templateService.deleteTemplate(id);
+    const result = await templateService.deleteTemplate(req.professorId!, id);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -131,7 +131,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
 router.post('/:id/duplicate', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const template = await templateService.duplicateTemplate(id);
+    const template = await templateService.duplicateTemplate(req.professorId!, id);
     res.status(201).json({ success: true, data: template });
   } catch (error) {
     next(error);
@@ -142,7 +142,7 @@ router.post('/:id/duplicate', async (req: AuthRequest, res: Response, next: Next
 router.post('/:id/preview', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const template = await templateService.getTemplate(id);
+    const template = await templateService.getTemplate(req.professorId!, id);
     const customVariables = req.body.variables || {};
     const sampleVariables = templateService.getSampleVariables();
 

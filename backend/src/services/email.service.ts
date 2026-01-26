@@ -64,11 +64,15 @@ export interface SendLetterInput {
 export async function sendLetter(input: SendLetterInput): Promise<void> {
   const { letterId, destinationId } = input;
 
-  // Get letter
+  // Get letter with professor info from request relation
   const letter = await prisma.letter.findUnique({
     where: { id: letterId },
     include: {
-      request: true,
+      request: {
+        include: {
+          professor: true,
+        },
+      },
     },
   });
 
@@ -106,8 +110,8 @@ export async function sendLetter(input: SendLetterInput): Promise<void> {
     pdfPath = await generatePdf(letterId);
   }
 
-  // Get professor info for sender
-  const professor = await prisma.professor.findFirst();
+  // Get professor info for sender from request relation
+  const professor = letter.request.professor;
   const fromName = professor?.name || 'Recommate';
   const fromEmail = config.smtp.user;
 

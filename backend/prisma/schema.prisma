@@ -10,12 +10,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Professor (single user)
+// Professor user
 model Professor {
   id              String   @id @default(uuid())
   email           String   @unique
   passwordHash    String   @map("password_hash")
   name            String
+  isAdmin         Boolean  @default(false) @map("is_admin")
   title           String?  // e.g., "Associate Professor"
   department      String?
   institution     String?
@@ -27,6 +28,10 @@ model Professor {
   headerConfig    Json?    @map("header_config")    // PDF header configuration
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  letterRequests LetterRequest[]
+  templates      Template[]
 
   @@map("professor")
 }
@@ -63,9 +68,10 @@ enum SubmissionMethod {
 
 // Letter Request
 model LetterRequest {
-  id         String        @id @default(uuid())
-  accessCode String        @unique @map("access_code")
-  status     RequestStatus @default(PENDING)
+  id          String        @id @default(uuid())
+  professorId String        @map("professor_id")
+  accessCode  String        @unique @map("access_code")
+  status      RequestStatus @default(PENDING)
 
   // Student information (filled by student)
   studentName  String? @map("student_name")
@@ -104,10 +110,12 @@ model LetterRequest {
   updatedAt          DateTime  @updatedAt @map("updated_at")
 
   // Relations
+  professor    Professor             @relation(fields: [professorId], references: [id], onDelete: Cascade)
   documents    Document[]
   destinations SubmissionDestination[]
   letters      Letter[]
 
+  @@index([professorId])
   @@map("letter_request")
 }
 
@@ -138,6 +146,7 @@ model Document {
 // Letter Templates
 model Template {
   id          String  @id @default(uuid())
+  professorId String  @map("professor_id")
   name        String
   description String?
 
@@ -157,8 +166,10 @@ model Template {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  letters Letter[]
+  professor Professor @relation(fields: [professorId], references: [id], onDelete: Cascade)
+  letters   Letter[]
 
+  @@index([professorId])
   @@map("template")
 }
 

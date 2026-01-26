@@ -21,15 +21,16 @@ export interface ListRequestsOptions {
   offset?: number;
 }
 
-export async function listRequests(options?: ListRequestsOptions) {
+export async function listRequests(professorId: string, options?: ListRequestsOptions) {
   const where: {
+    professorId: string;
     status?: RequestStatus;
     OR?: Array<{
       studentName?: { contains: string; mode: 'insensitive' };
       studentEmail?: { contains: string; mode: 'insensitive' };
       accessCode?: { contains: string; mode: 'insensitive' };
     }>;
-  } = {};
+  } = { professorId };
 
   if (options?.status) {
     where.status = options.status;
@@ -72,7 +73,7 @@ export async function listRequests(options?: ListRequestsOptions) {
   return { requests, total };
 }
 
-export async function getRequest(id: string) {
+export async function getRequest(professorId: string, id: string) {
   const request = await prisma.letterRequest.findUnique({
     where: { id },
     include: {
@@ -93,14 +94,14 @@ export async function getRequest(id: string) {
     },
   });
 
-  if (!request) {
+  if (!request || request.professorId !== professorId) {
     throw new AppError('Request not found', 404);
   }
 
   return request;
 }
 
-export async function createRequest(data: CreateRequestInput) {
+export async function createRequest(professorId: string, data: CreateRequestInput) {
   // Generate unique access code
   let accessCode = createAccessCode();
   let attempts = 0;
@@ -124,6 +125,7 @@ export async function createRequest(data: CreateRequestInput) {
 
   const request = await prisma.letterRequest.create({
     data: {
+      professorId,
       accessCode,
       deadline: data.deadline,
       professorNotes: data.professorNotes,
@@ -133,12 +135,12 @@ export async function createRequest(data: CreateRequestInput) {
   return request;
 }
 
-export async function updateRequest(id: string, data: UpdateRequestInput) {
+export async function updateRequest(professorId: string, id: string, data: UpdateRequestInput) {
   const existing = await prisma.letterRequest.findUnique({
     where: { id },
   });
 
-  if (!existing) {
+  if (!existing || existing.professorId !== professorId) {
     throw new AppError('Request not found', 404);
   }
 
@@ -154,12 +156,12 @@ export async function updateRequest(id: string, data: UpdateRequestInput) {
   return request;
 }
 
-export async function deleteRequest(id: string) {
+export async function deleteRequest(professorId: string, id: string) {
   const existing = await prisma.letterRequest.findUnique({
     where: { id },
   });
 
-  if (!existing) {
+  if (!existing || existing.professorId !== professorId) {
     throw new AppError('Request not found', 404);
   }
 
@@ -171,12 +173,12 @@ export async function deleteRequest(id: string) {
   return { message: 'Request deleted' };
 }
 
-export async function updateRequestStatus(id: string, status: RequestStatus) {
+export async function updateRequestStatus(professorId: string, id: string, status: RequestStatus) {
   const existing = await prisma.letterRequest.findUnique({
     where: { id },
   });
 
-  if (!existing) {
+  if (!existing || existing.professorId !== professorId) {
     throw new AppError('Request not found', 404);
   }
 
@@ -188,12 +190,12 @@ export async function updateRequestStatus(id: string, status: RequestStatus) {
   return request;
 }
 
-export async function regenerateAccessCode(id: string) {
+export async function regenerateAccessCode(professorId: string, id: string) {
   const existing = await prisma.letterRequest.findUnique({
     where: { id },
   });
 
-  if (!existing) {
+  if (!existing || existing.professorId !== professorId) {
     throw new AppError('Request not found', 404);
   }
 
@@ -228,17 +230,18 @@ export async function regenerateAccessCode(id: string) {
   return request;
 }
 
-export async function getRequestStats() {
+export async function getRequestStats(professorId: string) {
   const [total, pending, submitted, inProgress, completed] = await Promise.all([
-    prisma.letterRequest.count(),
-    prisma.letterRequest.count({ where: { status: 'PENDING' } }),
-    prisma.letterRequest.count({ where: { status: 'SUBMITTED' } }),
-    prisma.letterRequest.count({ where: { status: 'IN_PROGRESS' } }),
-    prisma.letterRequest.count({ where: { status: 'COMPLETED' } }),
+    prisma.letterRequest.count({ where: { professorId } }),
+    prisma.letterRequest.count({ where: { professorId, status: 'PENDING' } }),
+    prisma.letterRequest.count({ where: { professorId, status: 'SUBMITTED' } }),
+    prisma.letterRequest.count({ where: { professorId, status: 'IN_PROGRESS' } }),
+    prisma.letterRequest.count({ where: { professorId, status: 'COMPLETED' } }),
   ]);
 
   const upcomingDeadlines = await prisma.letterRequest.findMany({
     where: {
+      professorId,
       deadline: {
         gte: new Date(),
         lte: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Next 14 days

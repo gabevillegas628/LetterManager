@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { api } from '../api/client'
-import type { Professor } from 'shared'
+import type { Professor, CreateProfessorInput } from 'shared'
 
 interface AuthContextType {
   professor: Professor | null
@@ -13,6 +13,10 @@ interface AuthContextType {
   deleteLetterhead: () => Promise<void>
   uploadSignature: (file: File) => Promise<void>
   deleteSignature: () => Promise<void>
+  // Admin functions
+  listProfessors: () => Promise<Professor[]>
+  createProfessor: (data: CreateProfessorInput) => Promise<Professor>
+  deleteProfessor: (id: string) => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -87,6 +91,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfessor(response.data.data)
   }
 
+  // Admin functions
+  const listProfessors = async (): Promise<Professor[]> => {
+    const response = await api.get('/auth/professors')
+    return response.data.data
+  }
+
+  const createProfessor = async (data: CreateProfessorInput): Promise<Professor> => {
+    const response = await api.post('/auth/professors', data)
+    return response.data.data
+  }
+
+  const deleteProfessor = async (id: string): Promise<void> => {
+    await api.delete(`/auth/professors/${id}`)
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -100,6 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         deleteLetterhead,
         uploadSignature,
         deleteSignature,
+        listProfessors,
+        createProfessor,
+        deleteProfessor,
       }}
     >
       {children}

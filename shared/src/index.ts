@@ -37,6 +37,7 @@ export interface Professor {
   id: string;
   email: string;
   name: string;
+  isAdmin: boolean;
   title?: string;
   department?: string;
   institution?: string;
@@ -53,6 +54,7 @@ export interface Professor {
 // Letter Request
 export interface LetterRequest {
   id: string;
+  professorId: string;
   accessCode: string;
   status: RequestStatus;
   studentName?: string;
@@ -106,6 +108,7 @@ export interface TemplateVariable {
 // Template
 export interface Template {
   id: string;
+  professorId: string;
   name: string;
   description?: string;
   content: string;
@@ -180,6 +183,16 @@ export interface LoginResponse {
 }
 
 export interface SetupRequest {
+  email: string;
+  password: string;
+  name: string;
+  title?: string;
+  department?: string;
+  institution?: string;
+}
+
+// Admin: Create professor input
+export interface CreateProfessorInput {
   email: string;
   password: string;
   name: string;

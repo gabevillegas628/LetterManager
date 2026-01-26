@@ -24,13 +24,14 @@ async function buildVariables(
 ): Promise<Record<string, string>> {
   const request = await prisma.letterRequest.findUnique({
     where: { id: requestId },
+    include: { professor: true },
   });
 
   if (!request) {
     throw new AppError('Request not found', 404);
   }
 
-  const professor = await prisma.professor.findFirst();
+  const professor = request.professor;
 
   // For master letters, use placeholders; for destination letters, use actual values
   let programValue: string;
@@ -85,15 +86,15 @@ async function buildVariables(
 }
 
 // Generate a letter from a template
-export async function generateLetter(data: GenerateLetterInput) {
+export async function generateLetter(professorId: string, data: GenerateLetterInput) {
   const { requestId, templateId } = data;
 
-  // Verify request exists and is in correct status
+  // Verify request exists, belongs to professor, and is in correct status
   const request = await prisma.letterRequest.findUnique({
     where: { id: requestId },
   });
 
-  if (!request) {
+  if (!request || request.professorId !== professorId) {
     throw new AppError('Request not found', 404);
   }
 
@@ -101,12 +102,12 @@ export async function generateLetter(data: GenerateLetterInput) {
     throw new AppError('Request must be submitted before generating a letter', 400);
   }
 
-  // Get template
+  // Get template (must belong to same professor)
   const template = await prisma.template.findUnique({
     where: { id: templateId },
   });
 
-  if (!template) {
+  if (!template || template.professorId !== professorId) {
     throw new AppError('Template not found', 404);
   }
 
@@ -167,7 +168,7 @@ export async function generateLetter(data: GenerateLetterInput) {
 }
 
 // Get letter by ID
-export async function getLetter(id: string) {
+export async function getLetter(professorId: string, id: string) {
   const letter = await prisma.letter.findUnique({
     where: { id },
     include: {
@@ -177,6 +178,7 @@ export async function getLetter(id: string) {
       request: {
         select: {
           id: true,
+          professorId: true,
           accessCode: true,
           studentName: true,
           studentEmail: true,
@@ -186,7 +188,7 @@ export async function getLetter(id: string) {
     },
   });
 
-  if (!letter) {
+  if (!letter || letter.request.professorId !== professorId) {
     throw new AppError('Letter not found', 404);
   }
 
@@ -194,7 +196,17 @@ export async function getLetter(id: string) {
 }
 
 // Get letters for a request
-export async function getLettersForRequest(requestId: string) {
+export async function getLettersForRequest(professorId: string, requestId: string) {
+  // Verify request belongs to professor
+  const request = await prisma.letterRequest.findUnique({
+    where: { id: requestId },
+    select: { professorId: true },
+  });
+
+  if (!request || request.professorId !== professorId) {
+    throw new AppError('Request not found', 404);
+  }
+
   const letters = await prisma.letter.findMany({
     where: { requestId },
     include: {
@@ -209,12 +221,13 @@ export async function getLettersForRequest(requestId: string) {
 }
 
 // Update letter content
-export async function updateLetter(id: string, data: UpdateLetterInput) {
+export async function updateLetter(professorId: string, id: string, data: UpdateLetterInput) {
   const letter = await prisma.letter.findUnique({
     where: { id },
+    include: { request: { select: { professorId: true } } },
   });
 
-  if (!letter) {
+  if (!letter || letter.request.professorId !== professorId) {
     throw new AppError('Letter not found', 404);
   }
 
@@ -233,12 +246,13 @@ export async function updateLetter(id: string, data: UpdateLetterInput) {
 }
 
 // Finalize letter (lock from editing)
-export async function finalizeLetter(id: string) {
+export async function finalizeLetter(professorId: string, id: string) {
   const letter = await prisma.letter.findUnique({
     where: { id },
+    include: { request: { select: { professorId: true } } },
   });
 
-  if (!letter) {
+  if (!letter || letter.request.professorId !== professorId) {
     throw new AppError('Letter not found', 404);
   }
 
@@ -260,12 +274,13 @@ export async function finalizeLetter(id: string) {
 }
 
 // Unfinalize letter (allow editing again)
-export async function unfinalizeLetter(id: string) {
+export async function unfinalizeLetter(professorId: string, id: string) {
   const letter = await prisma.letter.findUnique({
     where: { id },
+    include: { request: { select: { professorId: true } } },
   });
 
-  if (!letter) {
+  if (!letter || letter.request.professorId !== professorId) {
     throw new AppError('Letter not found', 404);
   }
 
@@ -287,12 +302,13 @@ export async function unfinalizeLetter(id: string) {
 }
 
 // Delete letter
-export async function deleteLetter(id: string) {
+export async function deleteLetter(professorId: string, id: string) {
   const letter = await prisma.letter.findUnique({
     where: { id },
+    include: { request: { select: { professorId: true } } },
   });
 
-  if (!letter) {
+  if (!letter || letter.request.professorId !== professorId) {
     throw new AppError('Letter not found', 404);
   }
 
@@ -304,12 +320,12 @@ export async function deleteLetter(id: string) {
 }
 
 // Delete all letters for a request (allows starting fresh)
-export async function deleteAllLettersForRequest(requestId: string) {
+export async function deleteAllLettersForRequest(professorId: string, requestId: string) {
   const request = await prisma.letterRequest.findUnique({
     where: { id: requestId },
   });
 
-  if (!request) {
+  if (!request || request.professorId !== professorId) {
     throw new AppError('Request not found', 404);
   }
 
@@ -329,16 +345,16 @@ export async function deleteAllLettersForRequest(requestId: string) {
 }
 
 // Generate letters for all destinations (master + per-destination)
-export async function generateLettersForAllDestinations(data: GenerateLetterInput) {
+export async function generateLettersForAllDestinations(professorId: string, data: GenerateLetterInput) {
   const { requestId, templateId } = data;
 
-  // Verify request exists and get destinations
+  // Verify request exists, belongs to professor, and get destinations
   const request = await prisma.letterRequest.findUnique({
     where: { id: requestId },
     include: { destinations: true },
   });
 
-  if (!request) {
+  if (!request || request.professorId !== professorId) {
     throw new AppError('Request not found', 404);
   }
 
@@ -346,12 +362,12 @@ export async function generateLettersForAllDestinations(data: GenerateLetterInpu
     throw new AppError('Request must be submitted before generating letters', 400);
   }
 
-  // Get template
+  // Get template (must belong to same professor)
   const template = await prisma.template.findUnique({
     where: { id: templateId },
   });
 
-  if (!template) {
+  if (!template || template.professorId !== professorId) {
     throw new AppError('Template not found', 404);
   }
 
@@ -436,7 +452,17 @@ export async function generateLettersForAllDestinations(data: GenerateLetterInpu
 }
 
 // Get letter for a specific destination
-export async function getLetterForDestination(requestId: string, destinationId: string) {
+export async function getLetterForDestination(professorId: string, requestId: string, destinationId: string) {
+  // Verify request belongs to professor
+  const request = await prisma.letterRequest.findUnique({
+    where: { id: requestId },
+    select: { professorId: true },
+  });
+
+  if (!request || request.professorId !== professorId) {
+    throw new AppError('Request not found', 404);
+  }
+
   const letter = await prisma.letter.findFirst({
     where: { requestId, destinationId },
     orderBy: { version: 'desc' },
@@ -452,7 +478,17 @@ export async function getLetterForDestination(requestId: string, destinationId: 
 }
 
 // Get master letter for a request
-export async function getMasterLetter(requestId: string) {
+export async function getMasterLetter(professorId: string, requestId: string) {
+  // Verify request belongs to professor
+  const request = await prisma.letterRequest.findUnique({
+    where: { id: requestId },
+    select: { professorId: true },
+  });
+
+  if (!request || request.professorId !== professorId) {
+    throw new AppError('Request not found', 404);
+  }
+
   const letter = await prisma.letter.findFirst({
     where: { requestId, isMaster: true },
     orderBy: { version: 'desc' },
@@ -466,7 +502,16 @@ export async function getMasterLetter(requestId: string) {
 
 // Sync master letter content to all destination letters
 // This copies the master's actual content, replacing [INSTITUTION] and [PROGRAM] placeholders
-export async function syncMasterToDestinations(requestId: string) {
+export async function syncMasterToDestinations(professorId: string, requestId: string) {
+  // Get the request and verify ownership
+  const request = await prisma.letterRequest.findUnique({
+    where: { id: requestId },
+  });
+
+  if (!request || request.professorId !== professorId) {
+    throw new AppError('Request not found', 404);
+  }
+
   // Get master letter
   const masterLetter = await prisma.letter.findFirst({
     where: { requestId, isMaster: true },
@@ -475,15 +520,6 @@ export async function syncMasterToDestinations(requestId: string) {
 
   if (!masterLetter) {
     throw new AppError('No master letter found', 404);
-  }
-
-  // Get the request for fallback values
-  const request = await prisma.letterRequest.findUnique({
-    where: { id: requestId },
-  });
-
-  if (!request) {
-    throw new AppError('Request not found', 404);
   }
 
   // Get all destinations
@@ -548,7 +584,17 @@ function escapeRegExp(string: string): string {
 }
 
 // Get all letters for a request organized by destination
-export async function getLettersWithDestinations(requestId: string) {
+export async function getLettersWithDestinations(professorId: string, requestId: string) {
+  // Verify request belongs to professor
+  const request = await prisma.letterRequest.findUnique({
+    where: { id: requestId },
+    select: { professorId: true },
+  });
+
+  if (!request || request.professorId !== professorId) {
+    throw new AppError('Request not found', 404);
+  }
+
   const letters = await prisma.letter.findMany({
     where: { requestId },
     include: {

@@ -26,9 +26,9 @@ const updateStatusSchema = z.object({
 });
 
 // GET /api/requests/stats - Get request statistics
-router.get('/stats', async (_req: AuthRequest, res: Response, next: NextFunction) => {
+router.get('/stats', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const stats = await requestService.getRequestStats();
+    const stats = await requestService.getRequestStats(req.professorId!);
     res.json({ success: true, data: stats });
   } catch (error) {
     next(error);
@@ -43,7 +43,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
     const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
 
-    const result = await requestService.listRequests({
+    const result = await requestService.listRequests(req.professorId!, {
       status,
       search,
       limit,
@@ -64,7 +64,7 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const request = await requestService.getRequest(id);
+    const request = await requestService.getRequest(req.professorId!, id);
     res.json({ success: true, data: request });
   } catch (error) {
     next(error);
@@ -75,7 +75,7 @@ router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = createRequestSchema.parse(req.body);
-    const request = await requestService.createRequest(data);
+    const request = await requestService.createRequest(req.professorId!, data);
     res.status(201).json({ success: true, data: request });
   } catch (error) {
     next(error);
@@ -87,7 +87,7 @@ router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
   try {
     const id = req.params.id as string;
     const data = updateRequestSchema.parse(req.body);
-    const request = await requestService.updateRequest(id, data);
+    const request = await requestService.updateRequest(req.professorId!, id, data);
     res.json({ success: true, data: request });
   } catch (error) {
     next(error);
@@ -98,7 +98,7 @@ router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const result = await requestService.deleteRequest(id);
+    const result = await requestService.deleteRequest(req.professorId!, id);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -110,7 +110,7 @@ router.patch('/:id/status', async (req: AuthRequest, res: Response, next: NextFu
   try {
     const id = req.params.id as string;
     const { status } = updateStatusSchema.parse(req.body);
-    const request = await requestService.updateRequestStatus(id, status);
+    const request = await requestService.updateRequestStatus(req.professorId!, id, status);
     res.json({ success: true, data: request });
   } catch (error) {
     next(error);
@@ -121,7 +121,7 @@ router.patch('/:id/status', async (req: AuthRequest, res: Response, next: NextFu
 router.post('/:id/regenerate-code', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const request = await requestService.regenerateAccessCode(id);
+    const request = await requestService.regenerateAccessCode(req.professorId!, id);
     res.json({ success: true, data: request });
   } catch (error) {
     next(error);

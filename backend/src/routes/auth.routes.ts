@@ -280,4 +280,60 @@ router.get(
   }
 );
 
+// ============ Admin Routes ============
+
+// Validation schema for creating a professor
+const createProfessorSchema = z.object({
+  email: z.string().email('Invalid email'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  name: z.string().min(1, 'Name is required'),
+  title: z.string().optional(),
+  department: z.string().optional(),
+  institution: z.string().optional(),
+});
+
+// GET /api/auth/professors - List all professors (admin only)
+router.get(
+  '/professors',
+  authMiddleware,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const professors = await authService.listProfessors(req.professorId!);
+      res.json({ success: true, data: professors });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /api/auth/professors - Create a new professor (admin only)
+router.post(
+  '/professors',
+  authMiddleware,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const data = createProfessorSchema.parse(req.body);
+      const professor = await authService.createProfessor(req.professorId!, data);
+      res.status(201).json({ success: true, data: professor });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// DELETE /api/auth/professors/:id - Delete a professor (admin only)
+router.delete(
+  '/professors/:id',
+  authMiddleware,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await authService.deleteProfessor(req.professorId!, id as string);
+      res.json({ success: true, message: 'Professor deleted' });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 export default router;

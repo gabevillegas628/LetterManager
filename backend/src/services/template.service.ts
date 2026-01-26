@@ -15,14 +15,15 @@ export interface UpdateTemplateInput extends Partial<CreateTemplateInput> {
   isActive?: boolean;
 }
 
-export async function listTemplates(options?: {
+export async function listTemplates(professorId: string, options?: {
   activeOnly?: boolean;
   category?: string;
 }) {
   const where: {
+    professorId: string;
     isActive?: boolean;
     category?: string;
-  } = {};
+  } = { professorId };
 
   if (options?.activeOnly) {
     where.isActive = true;
@@ -40,29 +41,30 @@ export async function listTemplates(options?: {
   return templates;
 }
 
-export async function getTemplate(id: string) {
+export async function getTemplate(professorId: string, id: string) {
   const template = await prisma.template.findUnique({
     where: { id },
   });
 
-  if (!template) {
+  if (!template || template.professorId !== professorId) {
     throw new AppError('Template not found', 404);
   }
 
   return template;
 }
 
-export async function createTemplate(data: CreateTemplateInput) {
-  // If this is set as default, unset other defaults
+export async function createTemplate(professorId: string, data: CreateTemplateInput) {
+  // If this is set as default, unset other defaults for this professor
   if (data.isDefault) {
     await prisma.template.updateMany({
-      where: { isDefault: true },
+      where: { professorId, isDefault: true },
       data: { isDefault: false },
     });
   }
 
   const template = await prisma.template.create({
     data: {
+      professorId,
       name: data.name,
       description: data.description,
       content: data.content,
@@ -75,19 +77,19 @@ export async function createTemplate(data: CreateTemplateInput) {
   return template;
 }
 
-export async function updateTemplate(id: string, data: UpdateTemplateInput) {
+export async function updateTemplate(professorId: string, id: string, data: UpdateTemplateInput) {
   const existing = await prisma.template.findUnique({
     where: { id },
   });
 
-  if (!existing) {
+  if (!existing || existing.professorId !== professorId) {
     throw new AppError('Template not found', 404);
   }
 
-  // If setting as default, unset other defaults
+  // If setting as default, unset other defaults for this professor
   if (data.isDefault) {
     await prisma.template.updateMany({
-      where: { isDefault: true, id: { not: id } },
+      where: { professorId, isDefault: true, id: { not: id } },
       data: { isDefault: false },
     });
   }
@@ -108,12 +110,12 @@ export async function updateTemplate(id: string, data: UpdateTemplateInput) {
   return template;
 }
 
-export async function deleteTemplate(id: string) {
+export async function deleteTemplate(professorId: string, id: string) {
   const existing = await prisma.template.findUnique({
     where: { id },
   });
 
-  if (!existing) {
+  if (!existing || existing.professorId !== professorId) {
     throw new AppError('Template not found', 404);
   }
 
@@ -124,17 +126,18 @@ export async function deleteTemplate(id: string) {
   return { message: 'Template deleted' };
 }
 
-export async function duplicateTemplate(id: string) {
+export async function duplicateTemplate(professorId: string, id: string) {
   const existing = await prisma.template.findUnique({
     where: { id },
   });
 
-  if (!existing) {
+  if (!existing || existing.professorId !== professorId) {
     throw new AppError('Template not found', 404);
   }
 
   const template = await prisma.template.create({
     data: {
+      professorId,
       name: `${existing.name} (Copy)`,
       description: existing.description,
       content: existing.content,

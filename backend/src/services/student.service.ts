@@ -46,7 +46,10 @@ export const studentService = {
   }> {
     const request = await prisma.letterRequest.findUnique({
       where: { accessCode: code.toUpperCase() },
-      select: { status: true },
+      select: {
+        status: true,
+        professor: { select: { email: true } },
+      },
     });
 
     if (!request) {
@@ -56,16 +59,11 @@ export const studentService = {
     // Only allow access if PENDING or SUBMITTED (for editing)
     const allowedStatuses: RequestStatus[] = ['PENDING', 'SUBMITTED'];
     if (!allowedStatuses.includes(request.status)) {
-      // Get professor email for contact
-      const professor = await prisma.professor.findFirst({
-        select: { email: true },
-      });
-
       const reason = request.status === 'IN_PROGRESS' ? 'in_progress'
         : request.status === 'COMPLETED' ? 'completed'
         : 'archived';
 
-      return { valid: false, status: request.status, reason, professorEmail: professor?.email };
+      return { valid: false, status: request.status, reason, professorEmail: request.professor.email };
     }
 
     return { valid: true, status: request.status };
@@ -81,6 +79,9 @@ export const studentService = {
     const request = await prisma.letterRequest.findUnique({
       where: { accessCode: code.toUpperCase() },
       include: {
+        professor: {
+          select: { email: true },
+        },
         documents: {
           select: {
             id: true,
@@ -115,16 +116,11 @@ export const studentService = {
     // Only return if status allows student access
     const allowedStatuses: RequestStatus[] = ['PENDING', 'SUBMITTED'];
     if (!allowedStatuses.includes(request.status)) {
-      // Get professor email for contact
-      const professor = await prisma.professor.findFirst({
-        select: { email: true },
-      });
-
       const reason = request.status === 'IN_PROGRESS' ? 'in_progress'
         : request.status === 'COMPLETED' ? 'completed'
         : 'archived';
 
-      return { success: false, reason, professorEmail: professor?.email };
+      return { success: false, reason, professorEmail: request.professor.email };
     }
 
     // Return student-visible fields only

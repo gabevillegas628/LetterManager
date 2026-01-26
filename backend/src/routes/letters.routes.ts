@@ -28,7 +28,7 @@ const sendLetterSchema = z.object({
 router.post('/generate', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = generateLetterSchema.parse(req.body);
-    const letter = await letterService.generateLetter(data);
+    const letter = await letterService.generateLetter(req.professorId!, data);
     res.status(201).json({ success: true, data: letter });
   } catch (error) {
     next(error);
@@ -39,7 +39,7 @@ router.post('/generate', async (req: AuthRequest, res: Response, next: NextFunct
 router.post('/generate-all', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = generateLetterSchema.parse(req.body);
-    const result = await letterService.generateLettersForAllDestinations(data);
+    const result = await letterService.generateLettersForAllDestinations(req.professorId!, data);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -50,7 +50,7 @@ router.post('/generate-all', async (req: AuthRequest, res: Response, next: NextF
 router.get('/request/:requestId', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const requestId = req.params.requestId as string;
-    const letters = await letterService.getLettersForRequest(requestId);
+    const letters = await letterService.getLettersForRequest(req.professorId!, requestId);
     res.json({ success: true, data: letters });
   } catch (error) {
     next(error);
@@ -61,7 +61,7 @@ router.get('/request/:requestId', async (req: AuthRequest, res: Response, next: 
 router.get('/request/:requestId/with-destinations', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const requestId = req.params.requestId as string;
-    const result = await letterService.getLettersWithDestinations(requestId);
+    const result = await letterService.getLettersWithDestinations(req.professorId!, requestId);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -72,7 +72,7 @@ router.get('/request/:requestId/with-destinations', async (req: AuthRequest, res
 router.get('/request/:requestId/master', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const requestId = req.params.requestId as string;
-    const letter = await letterService.getMasterLetter(requestId);
+    const letter = await letterService.getMasterLetter(req.professorId!, requestId);
     res.json({ success: true, data: letter });
   } catch (error) {
     next(error);
@@ -84,7 +84,7 @@ router.get('/request/:requestId/destination/:destinationId', async (req: AuthReq
   try {
     const requestId = req.params.requestId as string;
     const destinationId = req.params.destinationId as string;
-    const letter = await letterService.getLetterForDestination(requestId, destinationId);
+    const letter = await letterService.getLetterForDestination(req.professorId!, requestId, destinationId);
     res.json({ success: true, data: letter });
   } catch (error) {
     next(error);
@@ -95,7 +95,7 @@ router.get('/request/:requestId/destination/:destinationId', async (req: AuthReq
 router.post('/request/:requestId/sync', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const requestId = req.params.requestId as string;
-    const letters = await letterService.syncMasterToDestinations(requestId);
+    const letters = await letterService.syncMasterToDestinations(req.professorId!, requestId);
     res.json({ success: true, data: letters });
   } catch (error) {
     next(error);
@@ -106,7 +106,7 @@ router.post('/request/:requestId/sync', async (req: AuthRequest, res: Response, 
 router.delete('/request/:requestId/all', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const requestId = req.params.requestId as string;
-    const result = await letterService.deleteAllLettersForRequest(requestId);
+    const result = await letterService.deleteAllLettersForRequest(req.professorId!, requestId);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -117,7 +117,7 @@ router.delete('/request/:requestId/all', async (req: AuthRequest, res: Response,
 router.get('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const letter = await letterService.getLetter(id);
+    const letter = await letterService.getLetter(req.professorId!, id);
     res.json({ success: true, data: letter });
   } catch (error) {
     next(error);
@@ -129,7 +129,7 @@ router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
   try {
     const id = req.params.id as string;
     const data = updateLetterSchema.parse(req.body);
-    const letter = await letterService.updateLetter(id, data);
+    const letter = await letterService.updateLetter(req.professorId!, id, data);
     res.json({ success: true, data: letter });
   } catch (error) {
     next(error);
@@ -140,7 +140,7 @@ router.put('/:id', async (req: AuthRequest, res: Response, next: NextFunction) =
 router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const result = await letterService.deleteLetter(id);
+    const result = await letterService.deleteLetter(req.professorId!, id);
     res.json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -151,7 +151,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response, next: NextFunction
 router.post('/:id/finalize', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const letter = await letterService.finalizeLetter(id);
+    const letter = await letterService.finalizeLetter(req.professorId!, id);
     res.json({ success: true, data: letter });
   } catch (error) {
     next(error);
@@ -162,7 +162,7 @@ router.post('/:id/finalize', async (req: AuthRequest, res: Response, next: NextF
 router.post('/:id/unfinalize', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const id = req.params.id as string;
-    const letter = await letterService.unfinalizeLetter(id);
+    const letter = await letterService.unfinalizeLetter(req.professorId!, id);
     res.json({ success: true, data: letter });
   } catch (error) {
     next(error);
@@ -193,7 +193,7 @@ router.get('/:id/pdf', async (req: AuthRequest, res: Response, next: NextFunctio
     const pdfPath = await pdfService.getPdfPath(id);
 
     // Get letter for filename
-    const letter = await letterService.getLetter(id);
+    const letter = await letterService.getLetter(req.professorId!, id);
     const studentName = letter.request?.studentName?.replace(/\s+/g, '_') || 'Student';
     const filename = `Recommendation_Letter_${studentName}.pdf`;
 

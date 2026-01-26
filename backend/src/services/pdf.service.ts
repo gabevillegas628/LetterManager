@@ -336,7 +336,11 @@ export async function generatePdf(letterId: string): Promise<string> {
   const letter = await prisma.letter.findUnique({
     where: { id: letterId },
     include: {
-      request: true,
+      request: {
+        include: {
+          professor: true,
+        },
+      },
     },
   });
 
@@ -344,8 +348,8 @@ export async function generatePdf(letterId: string): Promise<string> {
     throw new AppError('Letter not found', 404);
   }
 
-  // Get professor info for letterhead
-  const professor = await prisma.professor.findFirst();
+  // Get professor info for letterhead from the request relation
+  const professor = letter.request.professor;
 
   // Build HTML - convert null values to undefined for the function
   const professorInfo = professor ? {
@@ -458,11 +462,17 @@ export async function isPdfUpToDate(letterId: string): Promise<boolean> {
 }
 
 // Generate a preview PDF from template content (returns buffer, doesn't save)
-export async function generatePreviewPdf(content: string): Promise<Buffer> {
+export async function generatePreviewPdf(professorId: string, content: string): Promise<Buffer> {
   // Get professor info for letterhead
-  const professor = await prisma.professor.findFirst();
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+  });
 
-  const professorInfo = professor ? {
+  if (!professor) {
+    throw new AppError('Professor not found', 404);
+  }
+
+  const professorInfo = {
     name: professor.name,
     title: professor.title ?? undefined,
     department: professor.department ?? undefined,
@@ -473,7 +483,7 @@ export async function generatePreviewPdf(content: string): Promise<Buffer> {
     headerConfig: professor.headerConfig as HeaderConfig | null,
     letterheadImage: professor.letterheadImage,
     signatureImage: professor.signatureImage,
-  } : undefined;
+  };
 
   const browser = await puppeteer.launch({
     headless: true,
