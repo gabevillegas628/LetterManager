@@ -427,27 +427,46 @@ export async function deleteProfessor(
 
   const professor = await prisma.professor.findUnique({
     where: { id: professorId },
+    include: {
+      letterRequests: {
+        include: {
+          documents: { select: { path: true } },
+          letters: { select: { pdfPath: true } },
+        },
+      },
+    },
   });
 
   if (!professor) {
     throw new AppError('Professor not found', 404);
   }
 
-  // Delete professor's images if they exist
-  if (professor.letterheadImage && fs.existsSync(professor.letterheadImage)) {
-    try {
-      fs.unlinkSync(professor.letterheadImage);
-    } catch {
-      // Ignore deletion errors
+  // Helper to safely delete a file
+  const safeUnlink = (filePath: string | null) => {
+    if (filePath && fs.existsSync(filePath)) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch {
+        // Ignore deletion errors
+      }
+    }
+  };
+
+  // Delete all associated files before cascade delete
+  // 1. Delete student-uploaded documents
+  for (const request of professor.letterRequests) {
+    for (const doc of request.documents) {
+      safeUnlink(doc.path);
+    }
+    // 2. Delete letter PDFs
+    for (const letter of request.letters) {
+      safeUnlink(letter.pdfPath);
     }
   }
-  if (professor.signatureImage && fs.existsSync(professor.signatureImage)) {
-    try {
-      fs.unlinkSync(professor.signatureImage);
-    } catch {
-      // Ignore deletion errors
-    }
-  }
+
+  // 3. Delete professor's letterhead and signature images
+  safeUnlink(professor.letterheadImage);
+  safeUnlink(professor.signatureImage);
 
   // Delete professor (cascades to requests, templates, etc.)
   await prisma.professor.delete({
