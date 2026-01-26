@@ -365,12 +365,16 @@ export default function RequestDetailPage() {
         </nav>
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content - All tabs rendered but only active one visible to preserve state */}
       <div className="card">
         <div className="card-body">
-          {activeTab === 'info' && <StudentInfoTab request={request} />}
-          {activeTab === 'documents' && <DocumentsTab documents={request.documents || []} />}
-          {activeTab === 'letter' && (
+          <div className={activeTab === 'info' ? '' : 'hidden'}>
+            <StudentInfoTab request={request} />
+          </div>
+          <div className={activeTab === 'documents' ? '' : 'hidden'}>
+            <DocumentsTab documents={request.documents || []} />
+          </div>
+          <div className={activeTab === 'letter' ? '' : 'hidden'}>
             <LetterTab
               request={request}
               masterLetter={masterLetter}
@@ -403,8 +407,8 @@ export default function RequestDetailPage() {
               isDownloadingPdf={downloadPdf.isPending}
               isPreviewingPdf={previewPdf.isPending}
             />
-          )}
-          {activeTab === 'destinations' && (
+          </div>
+          <div className={activeTab === 'destinations' ? '' : 'hidden'}>
             <DestinationsTab
               destinations={request.destinations || []}
               letter={currentLetter}
@@ -415,7 +419,7 @@ export default function RequestDetailPage() {
               onResetStatus={(id) => resetStatus.mutateAsync(id)}
               isSending={sendLetter.isPending}
             />
-          )}
+          </div>
         </div>
       </div>
 
