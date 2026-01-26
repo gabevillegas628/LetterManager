@@ -40,7 +40,7 @@ interface HeaderConfig {
 }
 
 const DEFAULT_HEADER_CONFIG: HeaderConfig = {
-  showName: true,
+  showName: false,
   items: ['title', 'department', 'institution', 'email']
 };
 
@@ -120,11 +120,11 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
     .letterhead {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.25em;
-      padding-bottom: 0.75em;
+      align-items: flex-start;
+      margin-bottom: 0.75em;
+      padding-bottom: 0.5em;
       border-bottom: 1px solid #c0c0c0;
-      gap: 1em;
+      gap: 0.75em;
     }
 
     .letterhead-logo {
@@ -132,32 +132,32 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
     }
 
     .letterhead-logo img {
-      max-width: 180px;
-      max-height: 70px;
+      max-width: 160px;
+      max-height: 50px;
       object-fit: contain;
     }
 
     .letterhead-info {
       flex: 1;
       text-align: right;
+      line-height: 1.3;
     }
 
     .letterhead-info h1 {
-      margin: 0;
-      font-size: 14pt;
+      margin: 0 0 2px 0;
+      font-size: 12pt;
       font-weight: 600;
       color: #2c3e50;
-      letter-spacing: 0.5px;
     }
 
     .letterhead-info p {
-      margin: 2px 0;
+      margin: 0;
       font-size: 9pt;
-      color: #666;
+      color: #555;
     }
 
     .date {
-      margin: 1.5em 0;
+      margin: 1em 0;
       font-size: 11pt;
     }
 

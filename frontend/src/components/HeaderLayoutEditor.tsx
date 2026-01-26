@@ -21,7 +21,7 @@ import type { HeaderConfig, HeaderItem } from 'shared'
 
 // Define constants locally to avoid ESM/CJS module issues
 const DEFAULT_HEADER_CONFIG: HeaderConfig = {
-  showName: true,
+  showName: false,
   items: ['title', 'department', 'institution', 'email']
 }
 
