@@ -133,8 +133,8 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
 
     .letterhead-logo img {
       max-width: 160px;
-      max-height: 50px;
       object-fit: contain;
+      /* max-height set dynamically via inline style */
     }
 
     .letterhead-info {
@@ -233,11 +233,38 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
 
     const headerItems = professorInfo ? renderHeaderItems(professorInfo, config) : '';
 
+    // Calculate logo height based on number of visible header lines
+    // Name line: ~18px, each info line: ~13px (9pt * 1.3 line-height)
+    const itemMap: Record<string, string | undefined> = professorInfo ? {
+      title: professorInfo.title,
+      department: professorInfo.department,
+      institution: professorInfo.institution,
+      address: professorInfo.address,
+      email: professorInfo.email,
+      phone: professorInfo.phone,
+    } : {};
+    // Count lines, accounting for multi-line address
+    let lineCount = 0;
+    for (const item of config.items) {
+      const value = itemMap[item];
+      if (value) {
+        if (item === 'address') {
+          // Count actual lines in address
+          lineCount += value.split('\n').filter(line => line.trim()).length;
+        } else {
+          lineCount += 1;
+        }
+      }
+    }
+    const nameHeight = (config.showName && professorInfo?.name) ? 18 : 0;
+    const itemsHeight = lineCount * 13;
+    const logoMaxHeight = Math.max(30, nameHeight + itemsHeight); // minimum 30px
+
     return `
   <div class="letterhead">
     ${letterheadDataUri ? `
     <div class="letterhead-logo">
-      <img src="${letterheadDataUri}" alt="Letterhead" />
+      <img src="${letterheadDataUri}" alt="Letterhead" style="max-height: ${logoMaxHeight}px;" />
     </div>
     ` : ''}
     <div class="letterhead-info">
