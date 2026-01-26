@@ -151,7 +151,21 @@ export default function RequestFormPage() {
       if (lockout) {
         setLockoutError(lockout)
       } else {
-        setError('Failed to save. Please try again.')
+        // Extract validation errors or other error details
+        const axiosError = err as { response?: { data?: { error?: string; details?: Record<string, string[]> } } }
+        if (axiosError.response?.data?.details) {
+          // Format validation errors for display
+          const details = axiosError.response.data.details
+          const messages = Object.entries(details)
+            .map(([field, errors]) => `${field}: ${(errors as string[]).join(', ')}`)
+            .join('; ')
+          setError(`Validation error: ${messages}`)
+        } else if (axiosError.response?.data?.error) {
+          setError(axiosError.response.data.error)
+        } else {
+          setError('Failed to save. Please try again.')
+        }
+        console.error('Save error:', err)
       }
     }
   }
