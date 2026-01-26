@@ -34,12 +34,49 @@ function imageToBase64(imagePath: string): string | null {
   }
 }
 
+interface HeaderConfig {
+  showName: boolean;
+  items: string[];
+}
+
+const DEFAULT_HEADER_CONFIG: HeaderConfig = {
+  showName: true,
+  items: ['title', 'department', 'institution', 'email']
+};
+
+// Helper to render header items based on config
+function renderHeaderItems(professorInfo: PdfProfessorInfo, config: HeaderConfig): string {
+  const itemMap: Record<string, string | undefined> = {
+    title: professorInfo.title,
+    department: professorInfo.department,
+    institution: professorInfo.institution,
+    address: professorInfo.address,
+    email: professorInfo.email,
+    phone: professorInfo.phone,
+  };
+
+  return config.items
+    .map(item => {
+      const value = itemMap[item];
+      if (!value) return '';
+      // Address may have multiple lines
+      if (item === 'address') {
+        return value.split('\n').map(line => `<p>${line}</p>`).join('');
+      }
+      return `<p>${value}</p>`;
+    })
+    .join('');
+}
+
 interface PdfProfessorInfo {
   name?: string;
   title?: string;
   department?: string;
   institution?: string;
   email?: string;
+  address?: string;
+  phone?: string;
+  headerConfig?: HeaderConfig | null;
   letterheadImage?: string | null;
   signatureImage?: string | null;
 }
@@ -189,7 +226,14 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
   </style>
 </head>
 <body>
-  ${professorInfo?.name || letterheadDataUri ? `
+  ${(() => {
+    const config = professorInfo?.headerConfig || DEFAULT_HEADER_CONFIG;
+    const showHeader = (config.showName && professorInfo?.name) || letterheadDataUri || (professorInfo && config.items.length > 0);
+    if (!showHeader) return '';
+
+    const headerItems = professorInfo ? renderHeaderItems(professorInfo, config) : '';
+
+    return `
   <div class="letterhead">
     ${letterheadDataUri ? `
     <div class="letterhead-logo">
@@ -197,14 +241,12 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
     </div>
     ` : ''}
     <div class="letterhead-info">
-      ${professorInfo?.name ? `<h1>${professorInfo.name}</h1>` : ''}
-      ${professorInfo?.title ? `<p>${professorInfo.title}</p>` : ''}
-      ${professorInfo?.department ? `<p>${professorInfo.department}</p>` : ''}
-      ${professorInfo?.institution ? `<p>${professorInfo.institution}</p>` : ''}
-      ${professorInfo?.email ? `<p>${professorInfo.email}</p>` : ''}
+      ${config.showName && professorInfo?.name ? `<h1>${professorInfo.name}</h1>` : ''}
+      ${headerItems}
     </div>
   </div>
-  ` : ''}
+  `;
+  })()}
 
   <div class="date">${today}</div>
 
@@ -285,6 +327,9 @@ export async function generatePdf(letterId: string): Promise<string> {
     department: professor.department ?? undefined,
     institution: professor.institution ?? undefined,
     email: professor.email ?? undefined,
+    address: professor.address ?? undefined,
+    phone: professor.phone ?? undefined,
+    headerConfig: professor.headerConfig as HeaderConfig | null,
     letterheadImage: professor.letterheadImage,
     signatureImage: professor.signatureImage,
   } : undefined;
@@ -396,6 +441,9 @@ export async function generatePreviewPdf(content: string): Promise<Buffer> {
     department: professor.department ?? undefined,
     institution: professor.institution ?? undefined,
     email: professor.email ?? undefined,
+    address: professor.address ?? undefined,
+    phone: professor.phone ?? undefined,
+    headerConfig: professor.headerConfig as HeaderConfig | null,
     letterheadImage: professor.letterheadImage,
     signatureImage: professor.signatureImage,
   } : undefined;

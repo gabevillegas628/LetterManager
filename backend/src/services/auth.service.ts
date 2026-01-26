@@ -14,8 +14,11 @@ export interface ProfessorResponse {
   title: string | null;
   department: string | null;
   institution: string | null;
+  address: string | null;
+  phone: string | null;
   hasLetterhead: boolean;
   hasSignature: boolean;
+  headerConfig: { showName: boolean; items: string[] } | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,9 +30,12 @@ function excludePassword(professor: {
   title: string | null;
   department: string | null;
   institution: string | null;
+  address: string | null;
+  phone: string | null;
   signature: string | null;
   letterheadImage: string | null;
   signatureImage: string | null;
+  headerConfig: unknown;
   passwordHash: string;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +44,7 @@ function excludePassword(professor: {
   const { passwordHash, signature, letterheadImage, signatureImage, ...rest } = professor;
   return {
     ...rest,
+    headerConfig: rest.headerConfig as { showName: boolean; items: string[] } | null,
     hasLetterhead: !!letterheadImage,
     hasSignature: !!signatureImage,
   };
@@ -143,6 +150,9 @@ export async function updateProfile(
     title?: string;
     department?: string;
     institution?: string;
+    address?: string;
+    phone?: string;
+    headerConfig?: { showName: boolean; items: string[] };
   }
 ) {
   const professor = await prisma.professor.update({

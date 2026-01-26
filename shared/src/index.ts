@@ -7,6 +7,31 @@ export type SubmissionStatus = 'PENDING' | 'SENT' | 'CONFIRMED' | 'FAILED';
 // Submission Method
 export type SubmissionMethod = 'EMAIL' | 'DOWNLOAD' | 'PORTAL';
 
+// Header item types for PDF header configuration
+export type HeaderItem = 'title' | 'department' | 'institution' | 'address' | 'email' | 'phone';
+
+// PDF Header configuration
+export interface HeaderConfig {
+  showName: boolean;
+  items: HeaderItem[];
+}
+
+// Default header configuration (matches original behavior)
+export const DEFAULT_HEADER_CONFIG: HeaderConfig = {
+  showName: true,
+  items: ['title', 'department', 'institution', 'email']
+};
+
+// All available header items for the UI
+export const ALL_HEADER_ITEMS: { key: HeaderItem; label: string }[] = [
+  { key: 'title', label: 'Title' },
+  { key: 'department', label: 'Department' },
+  { key: 'institution', label: 'Institution' },
+  { key: 'address', label: 'Address' },
+  { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Phone' },
+];
+
 // Professor
 export interface Professor {
   id: string;
@@ -15,9 +40,12 @@ export interface Professor {
   title?: string;
   department?: string;
   institution?: string;
+  address?: string;
+  phone?: string;
   signature?: string;
   hasLetterhead?: boolean;
   hasSignature?: boolean;
+  headerConfig?: HeaderConfig;
   createdAt: string;
   updatedAt: string;
 }

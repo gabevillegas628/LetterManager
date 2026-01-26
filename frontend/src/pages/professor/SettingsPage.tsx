@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react'
 import { Upload, Trash2, Image, FileSignature, Loader2, Check } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import HeaderLayoutEditor from '../../components/HeaderLayoutEditor'
+import type { HeaderConfig } from 'shared'
 
 export default function SettingsPage() {
   const {
@@ -17,7 +19,12 @@ export default function SettingsPage() {
     title: professor?.title || '',
     department: professor?.department || '',
     institution: professor?.institution || '',
+    address: professor?.address || '',
+    phone: professor?.phone || '',
   })
+  const [headerConfig, setHeaderConfig] = useState<HeaderConfig | undefined>(
+    professor?.headerConfig
+  )
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [isUploadingLetterhead, setIsUploadingLetterhead] = useState(false)
@@ -32,7 +39,10 @@ export default function SettingsPage() {
     setError(null)
     setSaveSuccess(false)
     try {
-      await updateProfile(formData)
+      await updateProfile({
+        ...formData,
+        headerConfig,
+      })
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (err) {
@@ -166,6 +176,28 @@ export default function SettingsPage() {
               value={formData.institution}
               onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
               placeholder="e.g., University Name"
+            />
+          </div>
+
+          <div>
+            <label className="label">Address</label>
+            <textarea
+              className="input min-h-[80px]"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              placeholder="Office address (optional)"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="label">Phone</label>
+            <input
+              type="tel"
+              className="input"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              placeholder="e.g., (555) 123-4567"
             />
           </div>
 
@@ -331,6 +363,42 @@ export default function SettingsPage() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h2 className="text-lg font-semibold">PDF Header Layout</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Configure which information appears in your letter header and in what order
+          </p>
+        </div>
+        <div className="card-body">
+          <HeaderLayoutEditor
+            config={headerConfig}
+            onChange={setHeaderConfig}
+          />
+          <div className="pt-4 mt-4 border-t">
+            <button
+              onClick={handleSaveProfile}
+              disabled={isSaving}
+              className="btn-primary"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : saveSuccess ? (
+                <>
+                  <Check className="h-4 w-4 mr-2" />
+                  Saved!
+                </>
+              ) : (
+                'Save Header Layout'
+              )}
+            </button>
           </div>
         </div>
       </div>

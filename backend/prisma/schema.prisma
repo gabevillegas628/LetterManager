@@ -19,9 +19,12 @@ model Professor {
   title           String?  // e.g., "Associate Professor"
   department      String?
   institution     String?
+  address         String?  // Office/mailing address
+  phone           String?  // Phone number
   signature       String?  // Base64 or file path (legacy)
   letterheadImage String?  @map("letterhead_image") // Path to letterhead image
   signatureImage  String?  @map("signature_image")  // Path to signature image
+  headerConfig    Json?    @map("header_config")    // PDF header configuration
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
