@@ -134,7 +134,7 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
     .letterhead-logo img {
       max-width: 160px;
       object-fit: contain;
-      /* max-height set dynamically via inline style */
+      /* height set dynamically via inline style to match header info */
     }
 
     .letterhead-info {
@@ -264,7 +264,7 @@ function buildPdfHtml(content: string, professorInfo?: PdfProfessorInfo, fontSiz
   <div class="letterhead">
     ${letterheadDataUri ? `
     <div class="letterhead-logo">
-      <img src="${letterheadDataUri}" alt="Letterhead" style="max-height: ${logoMaxHeight}px;" />
+      <img src="${letterheadDataUri}" alt="Letterhead" style="height: ${logoMaxHeight}px;" />
     </div>
     ` : ''}
     <div class="letterhead-info">
