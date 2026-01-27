@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware.js';
 import * as templateService from '../services/template.service.js';
 import { generatePreviewPdf } from '../services/pdf.service.js';
+import { prisma } from '../db/index.js';
+import type { CustomQuestion } from 'shared';
 
 const router = Router();
 
@@ -32,12 +34,31 @@ const updateTemplateSchema = createTemplateSchema.partial().extend({
   isActive: z.boolean().optional(),
 });
 
-// GET /api/templates/variables/list - Get available system variables (must be before /:id)
-router.get('/variables/list', (_req, res) => {
-  res.json({
-    success: true,
-    data: templateService.SYSTEM_VARIABLES,
-  });
+// GET /api/templates/variables/list - Get available variables (system + custom questions)
+router.get('/variables/list', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    // Get professor's custom questions to include their variables
+    const professor = await prisma.professor.findUnique({
+      where: { id: req.professorId },
+      select: { customQuestions: true },
+    });
+
+    const customQuestions = (professor?.customQuestions as CustomQuestion[] | null) || [];
+
+    // Map custom questions to template variables
+    const questionVariables = customQuestions.map((q) => ({
+      name: q.variableName,
+      description: q.label,
+      category: 'Student Questions',
+    }));
+
+    res.json({
+      success: true,
+      data: [...templateService.SYSTEM_VARIABLES, ...questionVariables],
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // POST /api/templates/preview-pdf - Generate PDF preview from template content (must be before /:id)

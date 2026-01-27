@@ -470,8 +470,12 @@ function StudentInfoTab({ request }: { request: NonNullable<ReturnType<typeof us
     </div>
   )
 
+  // Check if this request uses custom questions (new flow) vs legacy fields
+  const hasCustomQuestions = request.questions && request.questions.length > 0
+
   return (
     <div className="grid md:grid-cols-2 gap-8">
+      {/* Personal Information - always shown */}
       <div>
         <h3 className="text-lg font-medium text-gray-900 mb-4">Personal Information</h3>
         <dl>
@@ -492,57 +496,11 @@ function StudentInfoTab({ request }: { request: NonNullable<ReturnType<typeof us
         </dl>
       </div>
 
-      <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Application Details</h3>
-        <dl>
-          <InfoRow label="Program" value={request.programApplying} />
-          <InfoRow label="Institution" value={request.institutionApplying} />
-          <InfoRow label="Degree Type" value={request.degreeType} />
-        </dl>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Academic History</h3>
-        <dl>
-          <InfoRow label="Course Taken" value={request.courseTaken} />
-          <InfoRow label="Grade" value={request.grade} />
-          <InfoRow label="Semester/Year" value={request.semesterYear} />
-        </dl>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
-        <dl>
-          <InfoRow label="Relationship Description" value={request.relationshipDescription} />
-          <InfoRow label="Achievements" value={request.achievements} />
-        </dl>
-      </div>
-
-      {(request.personalStatement || request.additionalNotes) && (
-        <div className="md:col-span-2">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Statements</h3>
+      {/* Custom Question Responses - shown when request has custom questions */}
+      {hasCustomQuestions ? (
+        <div className="md:col-span-1">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Student Responses</h3>
           <dl>
-            {request.personalStatement && (
-              <div className="py-3">
-                <dt className="text-sm font-medium text-gray-500">Personal Statement</dt>
-                <dd className="mt-1 text-gray-900 whitespace-pre-wrap">{request.personalStatement}</dd>
-              </div>
-            )}
-            {request.additionalNotes && (
-              <div className="py-3">
-                <dt className="text-sm font-medium text-gray-500">Additional Notes</dt>
-                <dd className="mt-1 text-gray-900 whitespace-pre-wrap">{request.additionalNotes}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
-      )}
-
-      {/* Custom Question Responses */}
-      {request.questions && request.questions.length > 0 && request.customFields && (
-        <div className="md:col-span-2">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Custom Responses</h3>
-          <dl className="grid md:grid-cols-2 gap-x-8">
             {(request.questions as CustomQuestion[])
               .sort((a, b) => a.order - b.order)
               .map((question) => {
@@ -559,6 +517,55 @@ function StudentInfoTab({ request }: { request: NonNullable<ReturnType<typeof us
               })}
           </dl>
         </div>
+      ) : (
+        <>
+          {/* Legacy sections - only shown for old requests without custom questions */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Application Details</h3>
+            <dl>
+              <InfoRow label="Program" value={request.programApplying} />
+              <InfoRow label="Institution" value={request.institutionApplying} />
+              <InfoRow label="Degree Type" value={request.degreeType} />
+            </dl>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Academic History</h3>
+            <dl>
+              <InfoRow label="Course Taken" value={request.courseTaken} />
+              <InfoRow label="Grade" value={request.grade} />
+              <InfoRow label="Semester/Year" value={request.semesterYear} />
+            </dl>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
+            <dl>
+              <InfoRow label="Relationship Description" value={request.relationshipDescription} />
+              <InfoRow label="Achievements" value={request.achievements} />
+            </dl>
+          </div>
+
+          {(request.personalStatement || request.additionalNotes) && (
+            <div className="md:col-span-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Statements</h3>
+              <dl>
+                {request.personalStatement && (
+                  <div className="py-3">
+                    <dt className="text-sm font-medium text-gray-500">Personal Statement</dt>
+                    <dd className="mt-1 text-gray-900 whitespace-pre-wrap">{request.personalStatement}</dd>
+                  </div>
+                )}
+                {request.additionalNotes && (
+                  <div className="py-3">
+                    <dt className="text-sm font-medium text-gray-500">Additional Notes</dt>
+                    <dd className="mt-1 text-gray-900 whitespace-pre-wrap">{request.additionalNotes}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

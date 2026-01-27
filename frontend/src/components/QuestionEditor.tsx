@@ -32,6 +32,20 @@ function generateId(): string {
   return `q-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
+// Generate a valid variable name from a label
+function generateVariableName(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .substring(0, 50) || 'variable'
+}
+
+// Validate variable name format
+function isValidVariableName(name: string): boolean {
+  return /^[a-z][a-z0-9_]*$/.test(name) && name.length <= 50
+}
+
 export default function QuestionEditor({ questions, onSave, isSaving }: QuestionEditorProps) {
   const [localQuestions, setLocalQuestions] = useState<CustomQuestion[]>(questions)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -51,6 +65,7 @@ export default function QuestionEditor({ questions, onSave, isSaving }: Question
       label: 'New Question',
       required: false,
       order: localQuestions.length + 1,
+      variableName: 'new_question',
     }
     setLocalQuestions([...localQuestions, newQuestion])
     setExpandedId(newQuestion.id)
@@ -96,11 +111,21 @@ export default function QuestionEditor({ questions, onSave, isSaving }: Question
     setError(null)
     try {
       // Validate questions
+      const variableNames = new Set<string>()
       for (const q of localQuestions) {
         if (!q.label.trim()) {
           setError('All questions must have a label')
           return
         }
+        if (!q.variableName || !isValidVariableName(q.variableName)) {
+          setError(`Question "${q.label}" has an invalid variable name. Use lowercase letters, numbers, and underscores only.`)
+          return
+        }
+        if (variableNames.has(q.variableName)) {
+          setError(`Duplicate variable name "${q.variableName}". Each question must have a unique variable name.`)
+          return
+        }
+        variableNames.add(q.variableName)
         if ((q.type === 'select' || q.type === 'multiselect') && (!q.options || q.options.length === 0)) {
           setError(`Question "${q.label}" needs at least one option`)
           return
@@ -229,11 +254,11 @@ function QuestionItem({
             {question.required && (
               <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-600 rounded">Required</span>
             )}
-            {question.legacyField && (
-              <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded">System</span>
-            )}
           </div>
-          <span className="text-sm text-gray-500">{typeInfo?.label || question.type}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">{typeInfo?.label || question.type}</span>
+            <span className="text-xs font-mono text-gray-400">{`{{${question.variableName}}}`}</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-1">
@@ -281,7 +306,16 @@ function QuestionItem({
                 type="text"
                 className="input"
                 value={question.label}
-                onChange={(e) => onUpdate({ label: e.target.value })}
+                onChange={(e) => {
+                  const newLabel = e.target.value
+                  // Auto-generate variable name if it matches the old auto-generated name
+                  const oldAutoName = generateVariableName(question.label)
+                  const shouldAutoUpdate = question.variableName === oldAutoName || question.variableName === 'new_question'
+                  onUpdate({
+                    label: newLabel,
+                    ...(shouldAutoUpdate && { variableName: generateVariableName(newLabel) }),
+                  })
+                }}
                 placeholder="Question label"
               />
             </div>
@@ -300,6 +334,25 @@ function QuestionItem({
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="label">Variable Name *</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                className="input font-mono"
+                value={question.variableName}
+                onChange={(e) => onUpdate({ variableName: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
+                placeholder="variable_name"
+              />
+              <span className="text-sm text-gray-500 whitespace-nowrap">
+                Use as: <code className="bg-gray-100 px-1 rounded">{`{{${question.variableName}}}`}</code>
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Lowercase letters, numbers, and underscores only. This is how you'll reference this field in letter templates.
+            </p>
           </div>
 
           <div>

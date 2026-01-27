@@ -17,6 +17,18 @@ export interface UpdateLetterInput {
 export const PLACEHOLDER_INSTITUTION = '[INSTITUTION]';
 export const PLACEHOLDER_PROGRAM = '[PROGRAM]';
 
+// Format a custom field value based on question type
+function formatCustomFieldValue(value: unknown, questionType: string): string {
+  if (value === undefined || value === null) return '';
+
+  if (questionType === 'multiselect' && Array.isArray(value)) {
+    return value.join(', ');
+  } else if (questionType === 'checkbox') {
+    return value ? 'Yes' : 'No';
+  }
+  return String(value);
+}
+
 // Build variables from request and professor data, with optional destination override
 async function buildVariables(
   requestId: string,
@@ -39,19 +51,17 @@ async function buildVariables(
   let institutionValue: string;
 
   if (usePlaceholders) {
-    // Master letter: use placeholders
     programValue = PLACEHOLDER_PROGRAM;
     institutionValue = PLACEHOLDER_INSTITUTION;
   } else if (destination) {
-    // Destination letter: use destination-specific values
     programValue = destination.programName || request.programApplying || '';
     institutionValue = destination.institutionName || request.institutionApplying || '';
   } else {
-    // Fallback: use request values
     programValue = request.programApplying || '';
     institutionValue = request.institutionApplying || '';
   }
 
+  // Build system variables (always available)
   const variables: Record<string, string> = {
     // Student info
     student_name: request.studentName || '',
@@ -62,12 +72,6 @@ async function buildVariables(
     // Application info
     program: programValue,
     institution: institutionValue,
-    degree_type: request.degreeType || '',
-
-    // Academic info
-    course_taken: request.courseTaken || '',
-    grade: request.grade || '',
-    semester_year: request.semesterYear || '',
 
     // Professor info
     professor_name: professor?.name || '',
@@ -83,42 +87,41 @@ async function buildVariables(
     }),
   };
 
-  // Add custom field values as template variables
-  if (request.customFields && request.questions) {
+  // Add custom question variables using question.variableName
+  if (request.questions && request.customFields) {
     const questions = request.questions as unknown as CustomQuestion[];
     const customFields = request.customFields as Record<string, unknown>;
 
+    console.log('[buildVariables] Processing questions:', questions.map(q => ({
+      id: q.id,
+      label: q.label,
+      variableName: q.variableName,
+    })));
+    console.log('[buildVariables] Custom fields keys:', Object.keys(customFields));
+
     for (const question of questions) {
-      const value = customFields[question.id];
-      if (value !== undefined && value !== null) {
-        // Create variable name from question label (sanitized)
-        const varName = sanitizeVariableName(question.label);
-
-        // Format value based on type
-        let stringValue: string;
-        if (question.type === 'multiselect' && Array.isArray(value)) {
-          stringValue = value.join(', ');
-        } else if (question.type === 'checkbox') {
-          stringValue = value ? 'Yes' : 'No';
-        } else {
-          stringValue = String(value);
-        }
-
-        variables[varName] = stringValue;
+      // Skip questions without a valid variableName
+      if (!question.variableName) {
+        console.warn(`[buildVariables] Question "${question.label}" (id: ${question.id}) has no variableName, skipping`);
+        continue;
       }
+
+      const value = customFields[question.id];
+      const formattedValue = formatCustomFieldValue(value, question.type);
+      variables[question.variableName] = formattedValue;
+
+      console.log(`[buildVariables] Set ${question.variableName} = "${formattedValue}" (from question: ${question.label})`);
     }
+  } else {
+    console.log('[buildVariables] No questions or customFields found:', {
+      hasQuestions: !!request.questions,
+      hasCustomFields: !!request.customFields,
+    });
   }
 
-  return variables;
-}
+  console.log('[buildVariables] Final variables:', Object.keys(variables));
 
-// Sanitize a question label to create a valid template variable name
-function sanitizeVariableName(label: string): string {
-  return label
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')  // Replace non-alphanumeric with underscores
-    .replace(/^_+|_+$/g, '')      // Remove leading/trailing underscores
-    .substring(0, 50);            // Limit length
+  return variables;
 }
 
 // Generate a letter from a template

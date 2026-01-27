@@ -10,17 +10,6 @@ export type SubmissionMethod = 'EMAIL' | 'DOWNLOAD' | 'PORTAL';
 // Custom Question Types
 export type QuestionType = 'text' | 'textarea' | 'select' | 'multiselect' | 'checkbox' | 'date' | 'email' | 'number';
 
-// Legacy field mapping for backward compatibility
-export type LegacyField =
-  | 'degreeType'
-  | 'courseTaken'
-  | 'grade'
-  | 'semesterYear'
-  | 'relationshipDescription'
-  | 'achievements'
-  | 'personalStatement'
-  | 'additionalNotes';
-
 // Custom Question definition
 export interface CustomQuestion {
   id: string;
@@ -31,10 +20,10 @@ export interface CustomQuestion {
   required: boolean;
   order: number;
   options?: string[]; // For select/multiselect
-  legacyField?: LegacyField; // Maps to existing database fields for backward compat
+  variableName: string; // Template variable name (e.g., 'course_taken' for use as {{course_taken}})
 }
 
-// Default questions that match current hardcoded fields
+// Default questions for new professors
 export const DEFAULT_QUESTIONS: CustomQuestion[] = [
   {
     id: 'degree-type',
@@ -44,7 +33,7 @@ export const DEFAULT_QUESTIONS: CustomQuestion[] = [
     required: false,
     order: 1,
     options: ['MD', 'MS', 'PhD', 'MBA', 'BS', 'Multiple', 'Other'],
-    legacyField: 'degreeType',
+    variableName: 'degree_type',
   },
   {
     id: 'course-taken',
@@ -53,7 +42,7 @@ export const DEFAULT_QUESTIONS: CustomQuestion[] = [
     placeholder: 'CS 101 - Intro to Programming',
     required: false,
     order: 2,
-    legacyField: 'courseTaken',
+    variableName: 'course_taken',
   },
   {
     id: 'grade',
@@ -62,7 +51,7 @@ export const DEFAULT_QUESTIONS: CustomQuestion[] = [
     placeholder: 'A',
     required: false,
     order: 3,
-    legacyField: 'grade',
+    variableName: 'grade',
   },
   {
     id: 'semester-year',
@@ -71,7 +60,7 @@ export const DEFAULT_QUESTIONS: CustomQuestion[] = [
     placeholder: 'Fall 2024',
     required: false,
     order: 4,
-    legacyField: 'semesterYear',
+    variableName: 'semester_year',
   },
   {
     id: 'relationship-description',
@@ -80,7 +69,7 @@ export const DEFAULT_QUESTIONS: CustomQuestion[] = [
     placeholder: 'How do you know the professor? What projects did you work on together?',
     required: false,
     order: 5,
-    legacyField: 'relationshipDescription',
+    variableName: 'relationship_description',
   },
   {
     id: 'achievements',
@@ -89,7 +78,7 @@ export const DEFAULT_QUESTIONS: CustomQuestion[] = [
     placeholder: 'List your notable achievements, awards, or accomplishments...',
     required: false,
     order: 6,
-    legacyField: 'achievements',
+    variableName: 'achievements',
   },
   {
     id: 'personal-statement',
@@ -98,7 +87,7 @@ export const DEFAULT_QUESTIONS: CustomQuestion[] = [
     placeholder: "Briefly describe your goals and why you're pursuing this program...",
     required: false,
     order: 7,
-    legacyField: 'personalStatement',
+    variableName: 'personal_statement',
   },
   {
     id: 'additional-notes',
@@ -107,7 +96,7 @@ export const DEFAULT_QUESTIONS: CustomQuestion[] = [
     placeholder: "Any other information you'd like your professor to know...",
     required: false,
     order: 8,
-    legacyField: 'additionalNotes',
+    variableName: 'additional_notes',
   },
 ];
 
@@ -362,18 +351,18 @@ export interface GenerateLetterInput {
   variableOverrides?: Record<string, string>;
 }
 
-// System variables available for templates
+// System variables available for templates (built from request/professor data)
+// Question-based variables are added dynamically from professor's custom questions
 export const SYSTEM_VARIABLES: TemplateVariable[] = [
   { name: 'student_name', description: 'Student full name', category: 'Student' },
+  { name: 'student_first_name', description: 'Student first name', category: 'Student' },
   { name: 'student_email', description: 'Student email', category: 'Student' },
+  { name: 'student_phone', description: 'Student phone number', category: 'Student' },
   { name: 'program', description: 'Program applying to', category: 'Application' },
   { name: 'institution', description: 'Institution applying to', category: 'Application' },
-  { name: 'degree_type', description: 'Degree type (MS, PhD, etc.)', category: 'Application' },
-  { name: 'course_taken', description: 'Course taken with professor', category: 'Academic' },
-  { name: 'grade', description: 'Grade in course', category: 'Academic' },
-  { name: 'semester_year', description: 'Semester and year', category: 'Academic' },
   { name: 'professor_name', description: 'Professor name', category: 'Professor' },
   { name: 'professor_title', description: 'Professor title', category: 'Professor' },
   { name: 'department', description: 'Department name', category: 'Professor' },
+  { name: 'professor_institution', description: 'Professor institution', category: 'Professor' },
   { name: 'date', description: 'Current date', category: 'System' },
 ];
