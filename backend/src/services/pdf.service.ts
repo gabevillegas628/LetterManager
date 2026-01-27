@@ -26,6 +26,7 @@ function imageToBase64(imagePath: string): string | null {
       '.jpeg': 'image/jpeg',
       '.gif': 'image/gif',
       '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
     };
     const mimeType = mimeTypes[ext] || 'image/png';
     return `data:${mimeType};base64,${imageBuffer.toString('base64')}`;

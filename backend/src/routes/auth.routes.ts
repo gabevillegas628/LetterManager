@@ -30,11 +30,11 @@ const imageFilter = (
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
-  const allowedMimes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+  const allowedMimes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only PNG, JPG, GIF, and WebP images are allowed'));
+    cb(new Error('Only PNG, JPG, GIF, WebP, and SVG images are allowed'));
   }
 };
 

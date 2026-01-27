@@ -469,7 +469,7 @@ export default function SettingsPage() {
             <input
               ref={letterheadInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp"
+              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
               onChange={handleLetterheadUpload}
               className="hidden"
             />
@@ -535,7 +535,7 @@ export default function SettingsPage() {
             <input
               ref={signatureInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp"
+              accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
               onChange={handleSignatureUpload}
               className="hidden"
             />
