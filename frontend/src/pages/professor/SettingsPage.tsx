@@ -1,17 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
-import { Upload, Trash2, Image, FileSignature, Loader2, Check, UserPlus, Users, AlertCircle } from 'lucide-react'
+import { Upload, Trash2, Image, FileSignature, Loader2, Check, UserPlus, Users, AlertCircle, MessageSquare, Lock } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import HeaderLayoutEditor from '../../components/HeaderLayoutEditor'
-import type { HeaderConfig, Professor } from 'shared'
+import QuestionEditor from '../../components/QuestionEditor'
+import type { HeaderConfig, Professor, CustomQuestion } from 'shared'
 
 export default function SettingsPage() {
   const {
     professor,
     updateProfile,
+    changePassword,
     uploadLetterhead,
     deleteLetterhead,
     uploadSignature,
     deleteSignature,
+    getQuestions,
+    updateQuestions,
     listProfessors,
     createProfessor,
     deleteProfessor,
@@ -51,6 +55,48 @@ export default function SettingsPage() {
     institution: '',
   })
   const [adminError, setAdminError] = useState<string | null>(null)
+
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
+
+  // Questions state
+  const [questions, setQuestions] = useState<CustomQuestion[]>([])
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false)
+  const [isSavingQuestions, setIsSavingQuestions] = useState(false)
+
+  // Load questions on mount
+  useEffect(() => {
+    loadQuestions()
+  }, [])
+
+  const loadQuestions = async () => {
+    setIsLoadingQuestions(true)
+    try {
+      const qs = await getQuestions()
+      setQuestions(qs)
+    } catch {
+      setError('Failed to load questions')
+    } finally {
+      setIsLoadingQuestions(false)
+    }
+  }
+
+  const handleSaveQuestions = async (updatedQuestions: CustomQuestion[]) => {
+    setIsSavingQuestions(true)
+    try {
+      const saved = await updateQuestions(updatedQuestions)
+      setQuestions(saved)
+    } finally {
+      setIsSavingQuestions(false)
+    }
+  }
 
   // Load professors list for admin
   useEffect(() => {
@@ -174,6 +220,35 @@ export default function SettingsPage() {
     }
   }
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError(null)
+    setPasswordSuccess(false)
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('New passwords do not match')
+      return
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters')
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      await changePassword(passwordData.currentPassword, passwordData.newPassword)
+      setPasswordSuccess(true)
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      setTimeout(() => setPasswordSuccess(false), 3000)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } }
+      setPasswordError(error.response?.data?.error || 'Failed to change password')
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -290,6 +365,85 @@ export default function SettingsPage() {
               )}
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-2">
+            <Lock className="h-5 w-5 text-gray-500" />
+            <h2 className="text-lg font-semibold">Change Password</h2>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Update your account password
+          </p>
+        </div>
+        <div className="card-body">
+          {passwordError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              {passwordError}
+            </div>
+          )}
+          {passwordSuccess && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4 flex items-center gap-2">
+              <Check className="h-4 w-4" />
+              Password changed successfully
+            </div>
+          )}
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div>
+              <label className="label">Current Password</label>
+              <input
+                type="password"
+                className="input"
+                required
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                placeholder="Enter your current password"
+              />
+            </div>
+            <div>
+              <label className="label">New Password</label>
+              <input
+                type="password"
+                className="input"
+                required
+                minLength={8}
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                placeholder="Min 8 characters"
+              />
+            </div>
+            <div>
+              <label className="label">Confirm New Password</label>
+              <input
+                type="password"
+                className="input"
+                required
+                minLength={8}
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                placeholder="Confirm your new password"
+              />
+            </div>
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={isChangingPassword}
+                className="btn-primary"
+              >
+                {isChangingPassword ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Changing...
+                  </>
+                ) : (
+                  'Change Password'
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -468,6 +622,33 @@ export default function SettingsPage() {
               )}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Student Questions Section */}
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-gray-500" />
+            <h2 className="text-lg font-semibold">Student Questions</h2>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Configure the questions students will answer when submitting a letter request.
+            These questions will be shown in the student form.
+          </p>
+        </div>
+        <div className="card-body">
+          {isLoadingQuestions ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            </div>
+          ) : (
+            <QuestionEditor
+              questions={questions}
+              onSave={handleSaveQuestions}
+              isSaving={isSavingQuestions}
+            />
+          )}
         </div>
       </div>
 

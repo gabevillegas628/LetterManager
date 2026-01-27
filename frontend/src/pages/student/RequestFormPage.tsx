@@ -34,6 +34,8 @@ import {
   type Document,
   type Destination,
 } from '../../hooks/useStudent'
+import DynamicQuestionField from '../../components/DynamicQuestionField'
+import type { CustomQuestion } from 'shared'
 
 const STEPS = [
   { id: 'personal', label: 'Personal Info', icon: User },
@@ -96,6 +98,9 @@ export default function RequestFormPage() {
     additionalNotes: '',
   })
 
+  // Custom fields state for dynamic questions
+  const [customFields, setCustomFields] = useState<Record<string, unknown>>({})
+
   // Sync form data with request data when loaded
   useEffect(() => {
     if (request) {
@@ -114,8 +119,17 @@ export default function RequestFormPage() {
         personalStatement: request.personalStatement || '',
         additionalNotes: request.additionalNotes || '',
       })
+      // Sync custom fields from request
+      if (request.customFields) {
+        setCustomFields(request.customFields)
+      }
     }
   }, [request])
+
+  // Handler for custom field changes
+  const handleCustomFieldChange = (questionId: string, value: unknown) => {
+    setCustomFields((prev) => ({ ...prev, [questionId]: value }))
+  }
 
   // New destination form
   const [newDestination, setNewDestination] = useState<DestinationInput>({
@@ -143,7 +157,8 @@ export default function RequestFormPage() {
     try {
       if (currentStep < 2) {
         // Save student info on personal and academic steps
-        await updateInfo.mutateAsync(formData)
+        // Include custom fields when saving
+        await updateInfo.mutateAsync({ ...formData, customFields })
       }
       setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1))
     } catch (err) {
@@ -434,9 +449,17 @@ export default function RequestFormPage() {
             <PersonalInfoStep formData={formData} onChange={handleInputChange} />
           )}
 
-          {/* Step 2: Academic Info */}
+          {/* Step 2: Academic Info / Custom Questions */}
           {currentStep === 1 && (
-            <AcademicInfoStep formData={formData} onChange={handleInputChange} />
+            request.questions && request.questions.length > 0 ? (
+              <DynamicQuestionsStep
+                questions={request.questions}
+                customFields={customFields}
+                onChange={handleCustomFieldChange}
+              />
+            ) : (
+              <AcademicInfoStep formData={formData} onChange={handleInputChange} />
+            )
           )}
 
           {/* Step 3: Documents */}
@@ -551,6 +574,39 @@ function PersonalInfoStep({
             required
           />
         </div>
+      </div>
+    </div>
+  )
+}
+
+function DynamicQuestionsStep({
+  questions,
+  customFields,
+  onChange,
+}: {
+  questions: CustomQuestion[]
+  customFields: Record<string, unknown>
+  onChange: (questionId: string, value: unknown) => void
+}) {
+  // Sort questions by order
+  const sortedQuestions = [...questions].sort((a, b) => a.order - b.order)
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold mb-4">Additional Information</h2>
+      <p className="text-sm text-gray-500 mb-4">
+        Please provide the following information to help your professor write your letter.
+      </p>
+
+      <div className="space-y-4">
+        {sortedQuestions.map((question) => (
+          <DynamicQuestionField
+            key={question.id}
+            question={question}
+            value={customFields[question.id]}
+            onChange={(value) => onChange(question.id, value)}
+          />
+        ))}
       </div>
     </div>
   )

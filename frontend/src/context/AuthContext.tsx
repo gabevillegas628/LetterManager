@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { api } from '../api/client'
-import type { Professor, CreateProfessorInput } from 'shared'
+import type { Professor, CreateProfessorInput, CustomQuestion } from 'shared'
 
 interface AuthContextType {
   professor: Professor | null
@@ -9,10 +9,14 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   logout: () => void
   updateProfile: (data: Partial<Professor>) => Promise<void>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>
   uploadLetterhead: (file: File) => Promise<void>
   deleteLetterhead: () => Promise<void>
   uploadSignature: (file: File) => Promise<void>
   deleteSignature: () => Promise<void>
+  // Question management
+  getQuestions: () => Promise<CustomQuestion[]>
+  updateQuestions: (questions: CustomQuestion[]) => Promise<CustomQuestion[]>
   // Admin functions
   listProfessors: () => Promise<Professor[]>
   createProfessor: (data: CreateProfessorInput) => Promise<Professor>
@@ -63,6 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfessor(response.data.data)
   }
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    await api.put('/auth/password', { currentPassword, newPassword })
+  }
+
   const uploadLetterhead = async (file: File) => {
     const formData = new FormData()
     formData.append('letterhead', file)
@@ -91,6 +99,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfessor(response.data.data)
   }
 
+  // Question management functions
+  const getQuestions = async (): Promise<CustomQuestion[]> => {
+    const response = await api.get('/auth/questions')
+    return response.data.data
+  }
+
+  const updateQuestions = async (questions: CustomQuestion[]): Promise<CustomQuestion[]> => {
+    const response = await api.put('/auth/questions', questions)
+    return response.data.data
+  }
+
   // Admin functions
   const listProfessors = async (): Promise<Professor[]> => {
     const response = await api.get('/auth/professors')
@@ -115,10 +134,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         updateProfile,
+        changePassword,
         uploadLetterhead,
         deleteLetterhead,
         uploadSignature,
         deleteSignature,
+        getQuestions,
+        updateQuestions,
         listProfessors,
         createProfessor,
         deleteProfessor,

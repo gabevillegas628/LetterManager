@@ -280,6 +280,41 @@ router.get(
   }
 );
 
+// ============ Question Management Routes ============
+
+// GET /api/auth/questions - Get professor's custom questions
+router.get(
+  '/questions',
+  authMiddleware,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const questions = await authService.getQuestions(req.professorId!);
+      res.json({ success: true, data: questions });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PUT /api/auth/questions - Update professor's custom questions
+router.put(
+  '/questions',
+  authMiddleware,
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const questions = req.body;
+      if (!Array.isArray(questions)) {
+        res.status(400).json({ success: false, error: 'Questions must be an array' });
+        return;
+      }
+      const updated = await authService.updateQuestions(req.professorId!, questions);
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // ============ Admin Routes ============
 
 // Validation schema for creating a professor

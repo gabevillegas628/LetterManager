@@ -2,6 +2,7 @@ import { prisma } from '../db/index.js';
 import { AppError } from '../middleware/error.middleware.js';
 import { interpolateTemplate } from './template.service.js';
 import type { SubmissionDestination } from '@prisma/client';
+import type { CustomQuestion } from 'shared';
 
 export interface GenerateLetterInput {
   requestId: string;
@@ -82,7 +83,42 @@ async function buildVariables(
     }),
   };
 
+  // Add custom field values as template variables
+  if (request.customFields && request.questions) {
+    const questions = request.questions as unknown as CustomQuestion[];
+    const customFields = request.customFields as Record<string, unknown>;
+
+    for (const question of questions) {
+      const value = customFields[question.id];
+      if (value !== undefined && value !== null) {
+        // Create variable name from question label (sanitized)
+        const varName = sanitizeVariableName(question.label);
+
+        // Format value based on type
+        let stringValue: string;
+        if (question.type === 'multiselect' && Array.isArray(value)) {
+          stringValue = value.join(', ');
+        } else if (question.type === 'checkbox') {
+          stringValue = value ? 'Yes' : 'No';
+        } else {
+          stringValue = String(value);
+        }
+
+        variables[varName] = stringValue;
+      }
+    }
+  }
+
   return variables;
+}
+
+// Sanitize a question label to create a valid template variable name
+function sanitizeVariableName(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')  // Replace non-alphanumeric with underscores
+    .replace(/^_+|_+$/g, '')      // Remove leading/trailing underscores
+    .substring(0, 50);            // Limit length
 }
 
 // Generate a letter from a template

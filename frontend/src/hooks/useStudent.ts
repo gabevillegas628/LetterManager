@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
-import type { SubmissionMethod } from 'shared'
+import type { SubmissionMethod, CustomQuestion } from 'shared'
 
 // Types
 export interface StudentRequest {
@@ -21,6 +21,7 @@ export interface StudentRequest {
   personalStatement: string | null
   additionalNotes: string | null
   customFields: Record<string, unknown> | null
+  questions: CustomQuestion[] | null // Custom questions for dynamic form
   deadline: string | null
   documents: Document[]
   destinations: Destination[]

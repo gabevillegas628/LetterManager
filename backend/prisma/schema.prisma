@@ -26,6 +26,7 @@ model Professor {
   letterheadImage String?  @map("letterhead_image") // Path to letterhead image
   signatureImage  String?  @map("signature_image")  // Path to signature image
   headerConfig    Json?    @map("header_config")    // PDF header configuration
+  customQuestions Json?    @map("custom_questions") // Custom questions for student form
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -96,6 +97,9 @@ model LetterRequest {
 
   // Flexible custom fields (JSON)
   customFields Json? @map("custom_fields")
+
+  // Custom questions snapshot (copied from professor at request creation)
+  questions Json? // Array of CustomQuestion objects
 
   // Deadline
   deadline DateTime?

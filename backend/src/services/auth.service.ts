@@ -1,9 +1,11 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
+import { Prisma } from '@prisma/client';
 import { config } from '../config/index.js';
 import { prisma } from '../db/index.js';
 import { AppError } from '../middleware/error.middleware.js';
+import { CustomQuestion, DEFAULT_QUESTIONS } from 'shared';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -20,6 +22,7 @@ export interface ProfessorResponse {
   hasLetterhead: boolean;
   hasSignature: boolean;
   headerConfig: { showName: boolean; items: string[] } | null;
+  customQuestions: CustomQuestion[] | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,15 +41,17 @@ function excludePassword(professor: {
   letterheadImage: string | null;
   signatureImage: string | null;
   headerConfig: unknown;
+  customQuestions: unknown;
   passwordHash: string;
   createdAt: Date;
   updatedAt: Date;
 }): ProfessorResponse {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { passwordHash, signature, letterheadImage, signatureImage, ...rest } = professor;
+  const { passwordHash, signature, letterheadImage, signatureImage, customQuestions, ...rest } = professor;
   return {
     ...rest,
     headerConfig: rest.headerConfig as { showName: boolean; items: string[] } | null,
+    customQuestions: customQuestions as CustomQuestion[] | null,
     hasLetterhead: !!letterheadImage,
     hasSignature: !!signatureImage,
   };
@@ -472,4 +477,50 @@ export async function deleteProfessor(
   await prisma.professor.delete({
     where: { id: professorId },
   });
+}
+
+// Question management functions
+
+export async function getQuestions(professorId: string): Promise<CustomQuestion[]> {
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+    select: { customQuestions: true },
+  });
+
+  if (!professor) {
+    throw new AppError('Professor not found', 404);
+  }
+
+  // Return custom questions or default questions if not set
+  return (professor.customQuestions as CustomQuestion[] | null) ?? DEFAULT_QUESTIONS;
+}
+
+export async function updateQuestions(
+  professorId: string,
+  questions: CustomQuestion[]
+): Promise<CustomQuestion[]> {
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+  });
+
+  if (!professor) {
+    throw new AppError('Professor not found', 404);
+  }
+
+  // Validate questions structure
+  for (const q of questions) {
+    if (!q.id || !q.type || !q.label || typeof q.required !== 'boolean' || typeof q.order !== 'number') {
+      throw new AppError('Invalid question structure', 400);
+    }
+  }
+
+  // Sort by order before saving
+  const sortedQuestions = [...questions].sort((a, b) => a.order - b.order);
+
+  await prisma.professor.update({
+    where: { id: professorId },
+    data: { customQuestions: sortedQuestions as unknown as Prisma.InputJsonValue },
+  });
+
+  return sortedQuestions;
 }

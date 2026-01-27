@@ -144,6 +144,7 @@ export const studentService = {
         personalStatement: request.personalStatement,
         additionalNotes: request.additionalNotes,
         customFields: request.customFields,
+        questions: request.questions, // Custom questions for dynamic form rendering
         deadline: request.deadline,
         documents: request.documents,
         destinations: request.destinations,

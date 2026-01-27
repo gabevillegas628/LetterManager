@@ -43,7 +43,7 @@ import {
 } from '../../hooks/useLetters'
 import RichTextEditor from '../../components/editor/RichTextEditor'
 import DocumentViewer from '../../components/documents/DocumentViewer'
-import type { SubmissionDestination } from 'shared'
+import type { SubmissionDestination, CustomQuestion } from 'shared'
 import type { Letter } from '../../api/letters.api'
 
 type TabType = 'info' | 'documents' | 'letter' | 'destinations'
@@ -537,8 +537,45 @@ function StudentInfoTab({ request }: { request: NonNullable<ReturnType<typeof us
           </dl>
         </div>
       )}
+
+      {/* Custom Question Responses */}
+      {request.questions && request.questions.length > 0 && request.customFields && (
+        <div className="md:col-span-2">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Custom Responses</h3>
+          <dl className="grid md:grid-cols-2 gap-x-8">
+            {(request.questions as CustomQuestion[])
+              .sort((a, b) => a.order - b.order)
+              .map((question) => {
+                const value = (request.customFields as Record<string, unknown>)?.[question.id]
+                const displayValue = formatCustomFieldValue(value, question.type)
+                return (
+                  <div key={question.id} className="py-3 border-b border-gray-100">
+                    <dt className="text-sm font-medium text-gray-500">{question.label}</dt>
+                    <dd className="mt-1 text-gray-900 whitespace-pre-wrap">
+                      {displayValue || <span className="text-gray-400 italic">Not provided</span>}
+                    </dd>
+                  </div>
+                )
+              })}
+          </dl>
+        </div>
+      )}
     </div>
   )
+}
+
+// Helper function to format custom field values for display
+function formatCustomFieldValue(value: unknown, type: string): string {
+  if (value === null || value === undefined || value === '') {
+    return ''
+  }
+  if (type === 'multiselect' && Array.isArray(value)) {
+    return value.join(', ')
+  }
+  if (type === 'checkbox') {
+    return value ? 'Yes' : 'No'
+  }
+  return String(value)
 }
 
 // Documents Tab

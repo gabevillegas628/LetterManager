@@ -1,7 +1,8 @@
-import { RequestStatus } from '@prisma/client';
+import { Prisma, RequestStatus } from '@prisma/client';
 import { prisma } from '../db/index.js';
 import { AppError } from '../middleware/error.middleware.js';
 import { createAccessCode } from './code.service.js';
+import { CustomQuestion, DEFAULT_QUESTIONS } from 'shared';
 
 export interface CreateRequestInput {
   deadline?: Date;
@@ -123,12 +124,21 @@ export async function createRequest(professorId: string, data: CreateRequestInpu
     throw new AppError('Failed to generate unique access code', 500);
   }
 
+  // Get professor's custom questions (or use defaults)
+  const professor = await prisma.professor.findUnique({
+    where: { id: professorId },
+    select: { customQuestions: true },
+  });
+
+  const questions = (professor?.customQuestions as CustomQuestion[] | null) ?? DEFAULT_QUESTIONS;
+
   const request = await prisma.letterRequest.create({
     data: {
       professorId,
       accessCode,
       deadline: data.deadline,
       professorNotes: data.professorNotes,
+      questions: questions as unknown as Prisma.InputJsonValue, // Copy questions snapshot to request
     },
   });
 

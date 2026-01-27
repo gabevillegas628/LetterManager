@@ -7,6 +7,110 @@ export type SubmissionStatus = 'PENDING' | 'SENT' | 'CONFIRMED' | 'FAILED';
 // Submission Method
 export type SubmissionMethod = 'EMAIL' | 'DOWNLOAD' | 'PORTAL';
 
+// Custom Question Types
+export type QuestionType = 'text' | 'textarea' | 'select' | 'multiselect' | 'checkbox' | 'date' | 'email' | 'number';
+
+// Legacy field mapping for backward compatibility
+export type LegacyField =
+  | 'degreeType'
+  | 'courseTaken'
+  | 'grade'
+  | 'semesterYear'
+  | 'relationshipDescription'
+  | 'achievements'
+  | 'personalStatement'
+  | 'additionalNotes';
+
+// Custom Question definition
+export interface CustomQuestion {
+  id: string;
+  type: QuestionType;
+  label: string;
+  description?: string;
+  placeholder?: string;
+  required: boolean;
+  order: number;
+  options?: string[]; // For select/multiselect
+  legacyField?: LegacyField; // Maps to existing database fields for backward compat
+}
+
+// Default questions that match current hardcoded fields
+export const DEFAULT_QUESTIONS: CustomQuestion[] = [
+  {
+    id: 'degree-type',
+    type: 'select',
+    label: 'Degree Being Sought',
+    description: 'The degree you are applying for',
+    required: false,
+    order: 1,
+    options: ['MD', 'MS', 'PhD', 'MBA', 'BS', 'Multiple', 'Other'],
+    legacyField: 'degreeType',
+  },
+  {
+    id: 'course-taken',
+    type: 'text',
+    label: 'Course Taken with Professor',
+    placeholder: 'CS 101 - Intro to Programming',
+    required: false,
+    order: 2,
+    legacyField: 'courseTaken',
+  },
+  {
+    id: 'grade',
+    type: 'text',
+    label: 'Grade Received',
+    placeholder: 'A',
+    required: false,
+    order: 3,
+    legacyField: 'grade',
+  },
+  {
+    id: 'semester-year',
+    type: 'text',
+    label: 'Semester/Year',
+    placeholder: 'Fall 2024',
+    required: false,
+    order: 4,
+    legacyField: 'semesterYear',
+  },
+  {
+    id: 'relationship-description',
+    type: 'textarea',
+    label: 'Describe Your Relationship with the Professor',
+    placeholder: 'How do you know the professor? What projects did you work on together?',
+    required: false,
+    order: 5,
+    legacyField: 'relationshipDescription',
+  },
+  {
+    id: 'achievements',
+    type: 'textarea',
+    label: 'Key Achievements',
+    placeholder: 'List your notable achievements, awards, or accomplishments...',
+    required: false,
+    order: 6,
+    legacyField: 'achievements',
+  },
+  {
+    id: 'personal-statement',
+    type: 'textarea',
+    label: 'Personal Statement / Goals',
+    placeholder: "Briefly describe your goals and why you're pursuing this program...",
+    required: false,
+    order: 7,
+    legacyField: 'personalStatement',
+  },
+  {
+    id: 'additional-notes',
+    type: 'textarea',
+    label: 'Additional Notes for Professor',
+    placeholder: "Any other information you'd like your professor to know...",
+    required: false,
+    order: 8,
+    legacyField: 'additionalNotes',
+  },
+];
+
 // Header item types for PDF header configuration
 export type HeaderItem = 'title' | 'department' | 'institution' | 'address' | 'email' | 'phone';
 
@@ -47,6 +151,7 @@ export interface Professor {
   hasLetterhead?: boolean;
   hasSignature?: boolean;
   headerConfig?: HeaderConfig;
+  customQuestions?: CustomQuestion[];
   createdAt: string;
   updatedAt: string;
 }
@@ -71,6 +176,7 @@ export interface LetterRequest {
   personalStatement?: string;
   additionalNotes?: string;
   customFields?: Record<string, unknown>;
+  questions?: CustomQuestion[]; // Snapshot of questions at request creation
   deadline?: string;
   professorNotes?: string;
   codeGeneratedAt: string;
