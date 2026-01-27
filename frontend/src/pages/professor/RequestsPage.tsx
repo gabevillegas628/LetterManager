@@ -14,6 +14,7 @@ import {
   ChevronUp,
   ChevronDown,
   Trash2,
+  Download,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useRequests, useCreateRequest, useDeleteRequest } from '../../hooks/useRequests'
@@ -43,6 +44,88 @@ const STATUS_CLASSES: Record<RequestStatus, string> = {
   IN_PROGRESS: 'badge-in-progress',
   COMPLETED: 'badge-completed',
   ARCHIVED: 'badge-archived',
+}
+
+function escapeCSV(value: string | undefined | null): string {
+  if (value == null) return ''
+  const str = String(value)
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
+}
+
+function exportDestinationsToCSV(requests: LetterRequest[]) {
+  const headers = [
+    'Student Name',
+    'Student Email',
+    'Request Status',
+    'Request Created',
+    'Student Submitted',
+    'Institution',
+    'Program',
+    'Recipient Name',
+    'Recipient Email',
+    'Submission Method',
+    'Submission Status',
+    'Deadline',
+    'Sent At',
+    'Confirmed At',
+  ]
+
+  const rows: string[][] = []
+
+  for (const request of requests) {
+    if (request.destinations && request.destinations.length > 0) {
+      for (const dest of request.destinations) {
+        rows.push([
+          escapeCSV(request.studentName),
+          escapeCSV(request.studentEmail),
+          escapeCSV(STATUS_LABELS[request.status]),
+          request.createdAt ? format(new Date(request.createdAt), 'yyyy-MM-dd') : '',
+          request.studentSubmittedAt ? format(new Date(request.studentSubmittedAt), 'yyyy-MM-dd') : '',
+          escapeCSV(dest.institutionName),
+          escapeCSV(dest.programName),
+          escapeCSV(dest.recipientName),
+          escapeCSV(dest.recipientEmail),
+          escapeCSV(dest.method),
+          escapeCSV(dest.status),
+          dest.deadline ? format(new Date(dest.deadline), 'yyyy-MM-dd') : '',
+          dest.sentAt ? format(new Date(dest.sentAt), 'yyyy-MM-dd') : '',
+          dest.confirmedAt ? format(new Date(dest.confirmedAt), 'yyyy-MM-dd') : '',
+        ])
+      }
+    } else {
+      // Include requests without destinations too
+      rows.push([
+        escapeCSV(request.studentName),
+        escapeCSV(request.studentEmail),
+        escapeCSV(STATUS_LABELS[request.status]),
+        request.createdAt ? format(new Date(request.createdAt), 'yyyy-MM-dd') : '',
+        request.studentSubmittedAt ? format(new Date(request.studentSubmittedAt), 'yyyy-MM-dd') : '',
+        '', // Institution
+        '', // Program
+        '', // Recipient Name
+        '', // Recipient Email
+        '', // Submission Method
+        '', // Submission Status
+        '', // Deadline
+        '', // Sent At
+        '', // Confirmed At
+      ])
+    }
+  }
+
+  const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `recommendation-letters-${format(new Date(), 'yyyy-MM-dd')}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 
 function RequestCard({ request, onDelete }: { request: LetterRequest; onDelete: (request: LetterRequest) => void }) {
@@ -668,10 +751,21 @@ export default function RequestsPage() {
             Manage recommendation letter requests ({data?.total || 0} total)
           </p>
         </div>
-        <button onClick={() => setShowCreateModal(true)} className="btn-primary">
-          <Plus className="h-4 w-4 mr-2" />
-          New Request
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => exportDestinationsToCSV(sortedRequests)}
+            className="btn-secondary"
+            disabled={sortedRequests.length === 0}
+            title="Export all destinations to CSV"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </button>
+          <button onClick={() => setShowCreateModal(true)} className="btn-primary">
+            <Plus className="h-4 w-4 mr-2" />
+            New Request
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

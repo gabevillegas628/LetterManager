@@ -8,7 +8,7 @@
  * Run with: npx tsx scripts/migrate-question-variable-names.ts
  */
 
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -58,10 +58,13 @@ function generateVariableName(label: string): string {
 }
 
 // Convert an old question to a new question with variableName
-function migrateQuestion(q: OldCustomQuestion): NewCustomQuestion {
-  const variableName = q.legacyField
-    ? legacyToVariable[q.legacyField] || generateVariableName(q.label)
-    : generateVariableName(q.label);
+function migrateQuestion(q: OldCustomQuestion & { variableName?: string }): NewCustomQuestion {
+  // If already has variableName, keep it; otherwise generate from legacyField or label
+  const variableName = q.variableName
+    ? q.variableName
+    : q.legacyField
+      ? legacyToVariable[q.legacyField] || generateVariableName(q.label)
+      : generateVariableName(q.label);
 
   // Return new question without legacyField
   return {
@@ -84,7 +87,7 @@ async function main() {
   console.log('Updating professor custom questions...');
   const professors = await prisma.professor.findMany({
     where: {
-      customQuestions: { not: null },
+      customQuestions: { not: Prisma.JsonNull },
     },
     select: {
       id: true,
@@ -109,7 +112,7 @@ async function main() {
 
     await prisma.professor.update({
       where: { id: professor.id },
-      data: { customQuestions: migratedQuestions },
+      data: { customQuestions: migratedQuestions as unknown as Prisma.InputJsonValue },
     });
 
     professorCount++;
@@ -122,7 +125,7 @@ async function main() {
   console.log('Updating letter request question snapshots...');
   const requests = await prisma.letterRequest.findMany({
     where: {
-      questions: { not: null },
+      questions: { not: Prisma.JsonNull },
     },
     select: {
       id: true,
@@ -148,7 +151,7 @@ async function main() {
 
     await prisma.letterRequest.update({
       where: { id: request.id },
-      data: { questions: migratedQuestions },
+      data: { questions: migratedQuestions as unknown as Prisma.InputJsonValue },
     });
 
     requestCount++;
