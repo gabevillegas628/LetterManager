@@ -493,6 +493,8 @@ export default function RequestFormPage() {
           {currentStep === 4 && (
             <ReviewStep
               formData={formData}
+              customFields={customFields}
+              questions={request.questions}
               documents={request.documents}
               destinations={request.destinations}
               deadline={request.deadline}
@@ -1156,15 +1158,29 @@ function DestinationsStep({
 
 function ReviewStep({
   formData,
+  customFields,
+  questions,
   documents,
   destinations,
   deadline,
 }: {
   formData: StudentInfoInput
+  customFields: Record<string, unknown>
+  questions: CustomQuestion[] | null
   documents: Document[]
   destinations: Destination[]
   deadline: string | null
 }) {
+  // Helper to format custom field values for display
+  const formatValue = (value: unknown, type: string): string => {
+    if (value === null || value === undefined || value === '') return '-'
+    if (type === 'multiselect' && Array.isArray(value)) return value.join(', ')
+    if (type === 'checkbox') return value ? 'Yes' : 'No'
+    return String(value)
+  }
+
+  const hasCustomQuestions = questions && questions.length > 0
+
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-semibold mb-4">Review Your Submission</h2>
@@ -1193,22 +1209,38 @@ function ReviewStep({
         </dl>
       </div>
 
-      {/* Academic Info */}
-      <div className="border rounded-lg p-4">
-        <h3 className="font-medium mb-3 flex items-center gap-2">
-          <GraduationCap className="h-4 w-4" /> Academic Background
-        </h3>
-        <dl className="grid grid-cols-2 gap-2 text-sm">
-          <dt className="text-gray-500">Degree Type:</dt>
-          <dd>{formData.degreeType || '-'}</dd>
-          <dt className="text-gray-500">Course with Professor:</dt>
-          <dd>{formData.courseTaken || '-'}</dd>
-          <dt className="text-gray-500">Grade:</dt>
-          <dd>{formData.grade || '-'}</dd>
-          <dt className="text-gray-500">Semester:</dt>
-          <dd>{formData.semesterYear || '-'}</dd>
-        </dl>
-      </div>
+      {/* Custom Questions or Legacy Academic Info */}
+      {hasCustomQuestions ? (
+        <div className="border rounded-lg p-4">
+          <h3 className="font-medium mb-3 flex items-center gap-2">
+            <GraduationCap className="h-4 w-4" /> Your Responses
+          </h3>
+          <dl className="grid grid-cols-1 gap-3 text-sm">
+            {[...questions].sort((a, b) => a.order - b.order).map((question) => (
+              <div key={question.id}>
+                <dt className="text-gray-500">{question.label}:</dt>
+                <dd className="mt-0.5">{formatValue(customFields[question.id], question.type)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : (
+        <div className="border rounded-lg p-4">
+          <h3 className="font-medium mb-3 flex items-center gap-2">
+            <GraduationCap className="h-4 w-4" /> Academic Background
+          </h3>
+          <dl className="grid grid-cols-2 gap-2 text-sm">
+            <dt className="text-gray-500">Degree Type:</dt>
+            <dd>{formData.degreeType || '-'}</dd>
+            <dt className="text-gray-500">Course with Professor:</dt>
+            <dd>{formData.courseTaken || '-'}</dd>
+            <dt className="text-gray-500">Grade:</dt>
+            <dd>{formData.grade || '-'}</dd>
+            <dt className="text-gray-500">Semester:</dt>
+            <dd>{formData.semesterYear || '-'}</dd>
+          </dl>
+        </div>
+      )}
 
       {/* Documents */}
       <div className="border rounded-lg p-4">
