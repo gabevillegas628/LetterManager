@@ -249,19 +249,39 @@ export async function getRequestStats(professorId: string) {
     prisma.letterRequest.count({ where: { professorId, status: 'COMPLETED' } }),
   ]);
 
+  // Fetch requests that have destinations with upcoming deadlines (within 60 days to cover all frontend filters)
   const upcomingDeadlines = await prisma.letterRequest.findMany({
     where: {
       professorId,
-      deadline: {
-        gte: new Date(),
-        lte: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Next 14 days
-      },
       status: {
         not: 'COMPLETED',
       },
+      destinations: {
+        some: {
+          deadline: {
+            gte: new Date(),
+            lte: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // Next 60 days
+          },
+          status: {
+            notIn: ['SENT', 'CONFIRMED'],
+          },
+        },
+      },
     },
-    orderBy: { deadline: 'asc' },
-    take: 5,
+    include: {
+      destinations: {
+        where: {
+          deadline: {
+            gte: new Date(),
+          },
+          status: {
+            notIn: ['SENT', 'CONFIRMED'],
+          },
+        },
+        orderBy: { deadline: 'asc' },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
   });
 
   return {
