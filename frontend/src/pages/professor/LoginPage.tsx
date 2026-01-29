@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { GraduationCap, Briefcase, ArrowRight, Clock, FileText, Calendar, Check, Send, Download, Eye, Bold, Italic, Underline, AlignLeft, ChevronDown, GripVertical, Plus, Zap, Shield, Users } from 'lucide-react'
+import { GraduationCap, Landmark, ArrowRight, Clock, FileText, Calendar, Check, Send, Download, Eye, Bold, Italic, Underline, AlignLeft, ChevronDown, GripVertical, Plus, Zap, Shield, Users } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { AxiosError } from 'axios'
 
@@ -30,11 +30,9 @@ function DashboardMockup() {
     <BrowserFrame url="recommate.net/dashboard">
       {/* Mini nav */}
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-            <FileText className="h-3.5 w-3.5 text-white" />
-          </div>
-          <span className="font-semibold text-gray-900 text-sm">Recommate</span>
+        <div className="flex items-center">
+          <img src="/RFinal.png" alt="" className="w-5 h-5 rounded" />
+          <span className="font-semibold text-gray-900 text-sm -ml-0.5">ecommate</span>
         </div>
         <div className="flex gap-3 text-xs text-gray-500">
           <span className="text-blue-600 font-medium">Dashboard</span>
@@ -426,15 +424,18 @@ export default function LoginPage() {
           <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-200/30 rounded-full blur-3xl" />
           <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-purple-200/20 rounded-full blur-3xl" />
 
+          {/* Header with logo - positioned to section */}
+          <header className="absolute top-6 right-6 flex items-center z-20">
+            <img src="/RFinal.png" alt="" className="w-12 h-12" />
+            <span className="text-3xl font-bold text-gray-900 -ml-3 relative z-10">ecommate</span>
+          </header>
+
           <div className="w-full max-w-md relative z-10">
-            {/* Logo/Brand */}
-            <header className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl mb-4 shadow-lg shadow-blue-600/30" aria-hidden="true">
-                <FileText className="h-7 w-7 text-white" />
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900">Recommate</h2>
-              <p className="text-gray-500 mt-2">Recommendation letter management made simple.</p>
-            </header>
+            {/* Tagline */}
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900">Welcome</h2>
+              <p className="text-gray-500 mt-2">Choose your role or request a teacher account.</p>
+            </div>
 
             {/* Benefit callouts */}
             <div className="flex justify-center gap-6 mb-8">
@@ -448,7 +449,7 @@ export default function LoginPage() {
                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                   <Users className="h-5 w-5 text-blue-600" />
                 </div>
-                <span className="text-xs text-gray-600 font-medium">Student Info</span>
+                <span className="text-xs text-gray-600 font-medium">Streamlined</span>
               </div>
               <div className="flex flex-col items-center gap-1.5">
                 <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
@@ -485,7 +486,7 @@ export default function LoginPage() {
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center group-hover:from-purple-200 group-hover:to-purple-300 transition-colors shadow-sm">
-                    <Briefcase className="h-6 w-6 text-purple-600" />
+                    <Landmark className="h-6 w-6 text-purple-600" />
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900">I'm a Professor</h3>
@@ -499,8 +500,17 @@ export default function LoginPage() {
             </div>
 
             {/* Footer */}
-            <footer className="text-center text-xs text-gray-400 mt-10">
-              <p>Free to use • No credit card required</p>
+            <footer className="text-center mt-10 space-y-2">
+              <p className="text-xs text-gray-400">Free to use • No credit card required</p>
+              <p className="text-xs text-gray-500">
+                Professor?{' '}
+                <Link
+                  to="/request-account"
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Request an account
+                </Link>
+              </p>
             </footer>
           </div>
         </section>
@@ -519,11 +529,17 @@ export default function LoginPage() {
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-purple-200/30 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-blue-200/20 rounded-full blur-3xl" />
 
+        {/* Header with logo - positioned to section */}
+        <header className="absolute top-6 right-6 flex items-center z-20">
+          <img src="/RFinal.png" alt="" className="w-12 h-12" />
+          <span className="text-3xl font-bold text-gray-900 -ml-3 relative z-10">ecommate</span>
+        </header>
+
         <div className="w-full max-w-md relative z-10">
-          {/* Logo/Brand */}
+          {/* Page title */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl mb-4 shadow-lg shadow-purple-600/30">
-              <Briefcase className="h-7 w-7 text-white" />
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl mb-4 shadow-sm">
+              <Landmark className="h-7 w-7 text-purple-600" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Professor Sign In</h1>
             <p className="text-gray-500 mt-2">Sign in to manage recommendation letters</p>
@@ -581,11 +597,20 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-gray-500">
+            <div className="mt-6 text-center text-sm text-gray-500 space-y-1">
               <p>
                 First time?{' '}
                 <Link to="/setup" className="text-primary-600 hover:text-primary-700 font-medium">
                   Set up your account
+                </Link>
+              </p>
+              <p className="text-xs">
+                or{' '}
+                <Link
+                  to="/request-account"
+                  className="text-blue-600 hover:text-blue-700"
+                >
+                  request an account
                 </Link>
               </p>
             </div>

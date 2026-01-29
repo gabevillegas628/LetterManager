@@ -29,4 +29,11 @@ export const config = {
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
   },
+
+  // Brevo (for transactional emails)
+  brevo: {
+    apiKey: process.env.BREVO_API_KEY || '',
+    senderEmail: process.env.BREVO_SENDER_EMAIL || 'noreply@recommate.net',
+    adminEmail: process.env.ADMIN_EMAIL || '',
+  },
 };

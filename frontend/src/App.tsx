@@ -8,6 +8,7 @@ import StudentLayout from './components/layout/StudentLayout'
 
 // Professor Pages
 import LoginPage from './pages/professor/LoginPage'
+import RequestAccountPage from './pages/professor/RequestAccountPage'
 import SetupPage from './pages/professor/SetupPage'
 import DashboardPage from './pages/professor/DashboardPage'
 import RequestsPage from './pages/professor/RequestsPage'
@@ -46,6 +47,7 @@ function App() {
       <Routes>
         {/* Professor Routes */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/request-account" element={<RequestAccountPage />} />
         <Route path="/setup" element={<SetupPage />} />
 
         <Route

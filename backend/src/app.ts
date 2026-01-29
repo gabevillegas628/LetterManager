@@ -13,6 +13,7 @@ import studentRoutes from './routes/student.routes.js';
 import templateRoutes from './routes/templates.routes.js';
 import letterRoutes from './routes/letters.routes.js';
 import uploadRoutes from './routes/uploads.routes.js';
+import contactRoutes from './routes/contact.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,6 +71,7 @@ app.use('/api/student', studentRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/letters', letterRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Serve frontend static files in production
 if (config.nodeEnv === 'production') {
